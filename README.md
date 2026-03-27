@@ -160,3 +160,11 @@ python -m src.fuel_price_lv.main --source-id demo_excel_v1 --fuel-type diesel --
 
 ## Piezime par failu nosaukumiem
 - automatiski generetu failu piemeri: `diesel_top3.json`, `diesel_summary_by_city.csv`
+
+## Next steps / v2 ideas
+
+- Add a real public data source adapter instead of relying only on demo/local inputs.
+- Improve report file naming so generated files reflect filters and reporting mode more clearly.
+- Add cache/snapshot support for remote sources to improve resilience and reproducibility.
+- Expand fuel type normalization to support more aliases and source-specific naming variations.
+- Improve packaging/release workflow with versioning, release tags, and optional automated test runs.
