@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: fuel-price-lv
+Version: 0.1.0
+Summary: CLI tool for filtering and reporting fuel prices in Latvia.
+Requires-Python: >=3.10
+Requires-Dist: pandas
+Requires-Dist: openpyxl
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"

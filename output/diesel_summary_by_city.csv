@@ -1,0 +1,3 @@
+city,station_name,address,fuel_type,price,google_maps_url
+Rīga,Neste,Kārļa Ulmaņa gatve 88,diesel,1.574,https://www.google.com/maps/search/?api=1&query=K%C4%81r%C4%BCa+Ulma%C5%86a+gatve+88%2C+R%C4%ABga
+Liepāja,Virši,Jūras iela 21,diesel,1.579,https://www.google.com/maps/search/?api=1&query=J%C5%ABras+iela+21%2C+Liep%C4%81ja

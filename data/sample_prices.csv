@@ -1,0 +1,11 @@
+station_name,address,city,fuel_type,price
+Circle K,Brīvības iela 100 Rīga,Rīga,diesel,1.589
+Neste,Kārļa Ulmaņa gatve 88 Rīga,Rīga,diesel,1.574
+Viada,Jelgavas iela 45 Rīga,Rīga,diesel,1.565
+Virši,Daugavpils iela 12 Rīga,Rīga,diesel,1.599
+Neste,Rīgas iela 10 Olaine,Olaine,diesel,1.549
+Circle K,Jūras iela 21 Liepāja,Liepāja,diesel,1.579
+Viada,Centra iela 5 Jelgava,Jelgava,diesel,1.559
+Circle K,Brīvības iela 100 Rīga,Rīga,petrol_95,1.699
+Neste,Kārļa Ulmaņa gatve 88 Rīga,Rīga,petrol_95,1.684
+Viada,Jelgavas iela 45 Rīga,Rīga,petrol_95,1.675

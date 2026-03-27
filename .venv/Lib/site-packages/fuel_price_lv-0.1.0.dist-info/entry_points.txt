@@ -1,0 +1,2 @@
+[console_scripts]
+fuel-price-lv = fuel_price_lv.main:main

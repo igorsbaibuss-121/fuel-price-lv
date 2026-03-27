@@ -1,0 +1,22 @@
+[
+  {
+    "source_id": "demo_standard",
+    "input_format": "standard",
+    "csv_path": "data/sample_prices.csv"
+  },
+  {
+    "source_id": "demo_raw_v1",
+    "input_format": "raw_v1",
+    "csv_path": "data/sample_raw_prices_v1.csv"
+  },
+  {
+    "source_id": "demo_excel_v1",
+    "input_format": "excel_v1",
+    "csv_path": "data/sample_excel_prices_v1.xlsx"
+  },
+  {
+    "source_id": "demo_remote_csv",
+    "input_format": "remote_csv_v1",
+    "source_url": "https://example.com/fuel_prices.csv"
+  }
+]
