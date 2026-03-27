@@ -44,10 +44,11 @@ python -m src.fuel_price_lv.main --fuel-type diesel
 - `--city` - filtrs pec pilsetas, piemeram, `Riga`
 - `--station` - filtrs pec DUS nosaukuma dalas, piemeram, `Neste`
 - `--source-id` - avota identifikators no source catalog JSON faila
+- `--source-ids` - ar komatiem atdalits vairaku source_id saraksts no source catalog faila
 - `--source-catalog` - source catalog JSON faila cels, noklusejums `data/source_catalog.json`
 - `--csv-path` - cels uz CSV failu, noklusejums `data/sample_prices.csv`
 - `--source-url` - attalinata CSV avota URL formatam `remote_csv_v1`
-- `--input-format` - ievades formats: `standard`, `raw_v1`, `excel_v1` vai `remote_csv_v1`
+- `--input-format` - ievades formats: `standard`, `raw_v1`, `excel_v1`, `remote_csv_v1`, `circlek_lv_v1` vai `neste_lv_v1`
 - `--top-n` - cik ierakstus radit, noklusejums `5`
 - `--sort-by` - kartot pec cenas: `price_asc` vai `price_desc`
 - `--output` - izvades formats: `table`, `csv` vai `json`
@@ -55,6 +56,10 @@ python -m src.fuel_price_lv.main --fuel-type diesel
 - `--save` - saglaba rezultatu mape `output/` ar automatiski generetu faila nosaukumu
 - `--summary-by-city` - rada letako izveletas degvielas cenu katra pilseta
 - `--report` - izveido report bundle mape `output/`
+- `--dedup` - palīdz samazināt dublikātus, īpaši vairāku avotu (`--source-ids`) palaidienos
+  un saglabā source provenance laukus `source_ids` un `source_count`
+- `--detect-price-conflicts` - izceļ atšķirīgas cenas starp saskaņotiem ierakstiem no vairākiem avotiem
+- `--ca-bundle` - ļauj norādīt CA bundle failu SSL verifikācijai attālinātiem publiskajiem avotiem
 
 ## Piemeri
 
@@ -123,6 +128,19 @@ python -m src.fuel_price_lv.main --csv-path data/sample_excel_prices_v1.xlsx --i
 python -m src.fuel_price_lv.main --input-format remote_csv_v1 --source-url https://example.com/fuel_prices.csv --fuel-type diesel --top-n 3
 ```
 
+### 13a. Lietot Circle K publisko web avotu
+```powershell
+fuel-price-lv --input-format circlek_lv_v1 --fuel-type diesel --top-n 5
+```
+`circlek_lv_v1` izmanto Circle K publisko degvielas cenu lapu un publisko staciju sarakstu.
+
+### 13b. Lietot Neste publisko web avotu
+```powershell
+fuel-price-lv --input-format neste_lv_v1 --fuel-type diesel --top-n 5
+```
+`neste_lv_v1` izmanto Neste publisko degvielas cenu lapu un publisko staciju sarakstu.
+Source catalog jau ietver dzivos publiskos avotus `circlek_live` un `neste_live`.
+
 ### 14. Lietot source-id katalogu raw_v1 avotam
 ```powershell
 python -m src.fuel_price_lv.main --source-id demo_raw_v1 --fuel-type diesel
@@ -137,6 +155,36 @@ python -m src.fuel_price_lv.main --source-id demo_excel_v1 --fuel-type diesel
 ```powershell
 python -m src.fuel_price_lv.main --source-id demo_excel_v1 --fuel-type diesel --top-n 3 --report
 ```
+
+### 17. Apvienot vairakus catalog avotus viena palaidienā
+```powershell
+fuel-price-lv --source-ids demo_standard,demo_excel_v1 --fuel-type diesel --top-n 5
+```
+`--source-ids` ielade un apvieno vairakus source catalog avotus viena rezultata kopa.
+
+### 18. Apvienot vairakus avotus un samazināt dublikātus
+```powershell
+fuel-price-lv --source-ids demo_standard,demo_excel_v1 --fuel-type diesel --top-n 10 --dedup
+```
+
+### 19. Apskatīt deduplicētu multi-source JSON ar provenance
+```powershell
+fuel-price-lv --source-ids demo_standard,demo_excel_v1 --fuel-type diesel --top-n 10 --dedup --output json
+```
+
+### 20. Apskatīt deduplicētu multi-source JSON ar cenu konfliktu anotācijām
+```powershell
+fuel-price-lv --source-ids demo_standard,demo_excel_v1 --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --output json
+```
+
+### 21. Palaist pilnu live multi-source report workflow
+```powershell
+fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --report
+```
+
+## Live source troubleshooting
+- Ja publiskie web avoti neatveras uzņēmuma tīklā ar SSL pārbaudes kļūdu, iestati `SSL_CERT_FILE` vai `REQUESTS_CA_BUNDLE`.
+- Alternatīvi vari palaist CLI ar `--ca-bundle path/to/company-ca.pem`.
 
 `--report` izveido tris failus mape `output/`:
 - `diesel_top3.csv`
@@ -168,3 +216,11 @@ python -m src.fuel_price_lv.main --source-id demo_excel_v1 --fuel-type diesel --
 - Add cache/snapshot support for remote sources to improve resilience and reproducibility.
 - Expand fuel type normalization to support more aliases and source-specific naming variations.
 - Improve packaging/release workflow with versioning, release tags, and optional automated test runs.
+
+## Live demo workflow
+
+```bash
+fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --report
+```
+
+This command runs a live multi-source workflow using public Circle K and Neste data sources, applies aggregation, optional deduplication, provenance tracking, and price conflict detection, then generates report outputs in the `output/` folder.
