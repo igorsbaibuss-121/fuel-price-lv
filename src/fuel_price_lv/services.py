@@ -1,5 +1,6 @@
 from pathlib import Path
 from urllib.parse import quote_plus
+
 import pandas as pd
 
 REQUIRED_COLUMNS = ["station_name", "address", "city", "fuel_type", "price"]
@@ -16,6 +17,111 @@ def load_data(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     validate_required_columns(df)
     return df
+
+
+def normalize_text_for_compare(value: object) -> str:
+    return " ".join(str(value).split()).strip().lower()
+
+
+def build_canonical_address(address: str, city: str | None = None) -> str:
+    canonical_address = normalize_text_for_compare(address)
+    if city is None:
+        return canonical_address
+
+    normalized_city = normalize_text_for_compare(city)
+    if normalized_city and canonical_address.endswith(normalized_city):
+        canonical_address = canonical_address[: -len(normalized_city)].strip()
+    return canonical_address
+
+
+def build_price_conflict_key(row: pd.Series) -> tuple:
+    return (
+        normalize_text_for_compare(row["station_name"]),
+        build_canonical_address(row["address"], row.get("city")),
+        normalize_text_for_compare(row["fuel_type"]),
+    )
+
+
+def build_dedup_key(row: pd.Series) -> tuple:
+    return (*build_price_conflict_key(row), float(row["price"]))
+
+
+def collect_source_provenance(rows: list[pd.Series]) -> tuple[list[str], int]:
+    source_ids: list[str] = []
+    seen_source_ids: set[str] = set()
+    for row in rows:
+        source_id = row.get("source_id")
+        if source_id is None:
+            continue
+        normalized_source_id = str(source_id)
+        if normalized_source_id in seen_source_ids:
+            continue
+        seen_source_ids.add(normalized_source_id)
+        source_ids.append(normalized_source_id)
+    return source_ids, len(source_ids)
+
+
+def collect_price_values(rows: list[pd.Series]) -> list[float]:
+    seen_prices: set[float] = set()
+    price_values: list[float] = []
+    for row in rows:
+        price = float(row["price"])
+        if price in seen_prices:
+            continue
+        seen_prices.add(price)
+        price_values.append(price)
+    return sorted(price_values)
+
+
+def annotate_price_conflicts(df: pd.DataFrame) -> pd.DataFrame:
+    grouped_rows: dict[tuple, list[pd.Series]] = {}
+    for _, row in df.iterrows():
+        conflict_key = build_price_conflict_key(row)
+        grouped_rows.setdefault(conflict_key, []).append(row.copy())
+
+    annotated_rows: list[pd.Series] = []
+    for _, row in df.iterrows():
+        conflict_key = build_price_conflict_key(row)
+        group_rows = grouped_rows[conflict_key]
+        price_values = collect_price_values(group_rows)
+        min_price = min(price_values)
+        max_price = max(price_values)
+        row_with_conflict = row.copy()
+        row_with_conflict["has_price_conflict"] = len(price_values) > 1
+        row_with_conflict["min_price"] = min_price
+        row_with_conflict["max_price"] = max_price
+        row_with_conflict["price_range"] = round(max_price - min_price, 3)
+        row_with_conflict["price_values"] = price_values
+        row_with_conflict["price_source_count"] = len(price_values)
+        annotated_rows.append(row_with_conflict)
+
+    return pd.DataFrame(annotated_rows)
+
+
+def deduplicate_results(df: pd.DataFrame) -> pd.DataFrame:
+    grouped_rows: dict[tuple, list[pd.Series]] = {}
+    dedup_key_order: list[tuple] = []
+
+    for _, row in df.iterrows():
+        dedup_key = build_price_conflict_key(row) if "has_price_conflict" in df.columns else build_dedup_key(row)
+        if dedup_key not in grouped_rows:
+            grouped_rows[dedup_key] = []
+            dedup_key_order.append(dedup_key)
+        grouped_rows[dedup_key].append(row.copy())
+
+    deduplicated_records: list[pd.Series] = []
+    for dedup_key in dedup_key_order:
+        grouped_record_rows = grouped_rows[dedup_key]
+        base_row = grouped_record_rows[0].copy()
+        if "source_id" in df.columns:
+            source_ids, source_count = collect_source_provenance(grouped_record_rows)
+            if source_ids:
+                base_row["source_id"] = source_ids[0]
+                base_row["source_ids"] = source_ids
+                base_row["source_count"] = source_count
+        deduplicated_records.append(base_row)
+
+    return pd.DataFrame(deduplicated_records)
 
 
 def filter_by_fuel_type(df: pd.DataFrame, fuel_type: str) -> pd.DataFrame:
@@ -37,8 +143,26 @@ def sort_by_price(df: pd.DataFrame, sort_by: str = "price_asc") -> pd.DataFrame:
     return df.sort_values(by="price", ascending=sort_by == "price_asc")
 
 
+def build_result_columns(df: pd.DataFrame, summary_by_city: bool = False) -> list[str]:
+    if summary_by_city:
+        columns = ["city", "station_name", "address", "fuel_type", "price"]
+    else:
+        columns = ["station_name", "address", "city", "fuel_type", "price"]
+    if "source_id" in df.columns:
+        columns.append("source_id")
+    if "source_ids" in df.columns:
+        columns.append("source_ids")
+    if "source_count" in df.columns:
+        columns.append("source_count")
+    if "has_price_conflict" in df.columns:
+        columns.extend(["has_price_conflict", "min_price", "max_price", "price_range", "price_values"])
+        if "price_source_count" in df.columns:
+            columns.append("price_source_count")
+    return columns
+
+
 def select_columns(df: pd.DataFrame) -> pd.DataFrame:
-    return df[["station_name", "address", "city", "fuel_type", "price"]]
+    return df[build_result_columns(df)]
 
 
 def format_price_column(df: pd.DataFrame) -> pd.DataFrame:
@@ -50,7 +174,7 @@ def format_price_column(df: pd.DataFrame) -> pd.DataFrame:
 def summarize_cheapest_by_city(df: pd.DataFrame) -> pd.DataFrame:
     summarized_df = sort_by_price(df)
     summarized_df = summarized_df.drop_duplicates(subset="city", keep="first")
-    summarized_df = summarized_df[["city", "station_name", "address", "fuel_type", "price"]]
+    summarized_df = summarized_df[build_result_columns(summarized_df, summary_by_city=True)]
     summarized_df = sort_by_price(summarized_df)
     return format_price_column(summarized_df)
 

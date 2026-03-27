@@ -20,3 +20,7 @@ def get_source_config(source_id: str, catalog_path: Path) -> dict:
         if source_config.get("source_id") == source_id:
             return source_config
     raise ValueError(f"Nav atrasts source_id katalogā: {source_id}")
+
+
+def get_multiple_source_configs(source_ids: list[str], catalog_path: Path) -> list[dict]:
+    return [get_source_config(source_id, catalog_path) for source_id in source_ids]

@@ -18,5 +18,13 @@
     "source_id": "demo_remote_csv",
     "input_format": "remote_csv_v1",
     "source_url": "https://example.com/fuel_prices.csv"
+  },
+  {
+    "source_id": "circlek_live",
+    "input_format": "circlek_lv_v1"
+  },
+  {
+    "source_id": "neste_live",
+    "input_format": "neste_lv_v1"
   }
 ]

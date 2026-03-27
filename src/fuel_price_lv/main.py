@@ -1,19 +1,23 @@
 from pathlib import Path
 import sys
 
+import pandas as pd
+
 from .cli import parse_args
 from .importers import load_input_data
 from .reporting import build_report_summary, render_output_text, write_report_bundle
 from .services import (
+    annotate_price_conflicts,
     build_default_output_filename,
     build_result_title,
+    deduplicate_results,
     filter_by_city,
     filter_by_fuel_type,
     filter_by_station_name,
     prepare_results,
     summarize_cheapest_by_city,
 )
-from .source_catalog import get_source_config
+from .source_catalog import get_multiple_source_configs, get_source_config
 
 
 def cli_flag_was_provided(flag_name: str) -> bool:
@@ -25,6 +29,27 @@ def configure_stdout_encoding() -> None:
         sys.stdout.reconfigure(encoding="utf-8")
 
 
+def input_format_uses_local_file(input_format: str) -> bool:
+    return input_format not in {"remote_csv_v1", "circlek_lv_v1", "neste_lv_v1"}
+
+
+def resolve_catalog_csv_path(csv_path_value: str, source_catalog_path: Path) -> str:
+    csv_path = Path(csv_path_value)
+    if csv_path.is_absolute() or csv_path.exists():
+        return str(csv_path)
+
+    same_dir_path = source_catalog_path.parent / csv_path
+    if same_dir_path.exists():
+        return str(same_dir_path)
+
+    repo_root_path = source_catalog_path.parent.parent / csv_path
+    if repo_root_path.exists():
+        return str(repo_root_path)
+
+    csv_path = same_dir_path
+    return str(csv_path)
+
+
 def apply_source_catalog_defaults(args) -> None:
     if not args.source_id:
         return
@@ -34,12 +59,89 @@ def apply_source_catalog_defaults(args) -> None:
     if not cli_flag_was_provided("--input-format") and "input_format" in source_config:
         args.input_format = source_config["input_format"]
     if not cli_flag_was_provided("--csv-path") and "csv_path" in source_config:
-        csv_path = Path(source_config["csv_path"])
-        if not csv_path.is_absolute() and not csv_path.exists():
-            csv_path = source_catalog_path.parent / csv_path
-        args.csv_path = str(csv_path)
+        args.csv_path = resolve_catalog_csv_path(source_config["csv_path"], source_catalog_path)
     if not cli_flag_was_provided("--source-url") and "source_url" in source_config:
         args.source_url = source_config["source_url"]
+
+
+def parse_source_ids(value: str | None) -> list[str]:
+    if value is None:
+        return []
+
+    source_ids = [source_id.strip() for source_id in value.split(",") if source_id.strip()]
+    if not source_ids:
+        raise ValueError("source-ids jānorāda vismaz viens source ID")
+    return source_ids
+
+
+def validate_source_selection(args) -> None:
+    if args.source_id and args.source_ids:
+        raise ValueError("Nevar vienlaikus lietot --source-id un --source-ids")
+
+
+def load_single_input_source(
+    csv_path: Path,
+    input_format: str,
+    source_url: str | None = None,
+    ca_bundle: str | None = None,
+) -> pd.DataFrame:
+    if input_format_uses_local_file(input_format) and not csv_path.exists():
+        raise ValueError(f"CSV fails nav atrasts: {csv_path}")
+    return load_input_data(csv_path=csv_path, input_format=input_format, source_url=source_url, ca_bundle=ca_bundle)
+
+
+def load_dataframe_for_source_config(
+    source_id: str,
+    source_config: dict,
+    source_catalog_path: Path,
+    ca_bundle: str | None = None,
+) -> pd.DataFrame:
+    input_format = source_config.get("input_format", "standard")
+    csv_path_value = source_config.get("csv_path", "data/sample_prices.csv")
+    if "csv_path" in source_config:
+        csv_path_value = resolve_catalog_csv_path(csv_path_value, source_catalog_path)
+    csv_path = Path(csv_path_value)
+    source_url = source_config.get("source_url")
+
+    df = load_single_input_source(
+        csv_path=csv_path,
+        input_format=input_format,
+        source_url=source_url,
+        ca_bundle=ca_bundle,
+    )
+    result_df = df.copy()
+    result_df["source_id"] = source_id
+    return result_df
+
+
+def load_aggregated_source_data(
+    source_ids: list[str],
+    source_catalog_path: Path,
+    ca_bundle: str | None = None,
+) -> pd.DataFrame:
+    source_configs = get_multiple_source_configs(source_ids, source_catalog_path)
+    dataframes = [
+        load_dataframe_for_source_config(source_id, source_config, source_catalog_path, ca_bundle=ca_bundle)
+        for source_id, source_config in zip(source_ids, source_configs, strict=True)
+    ]
+    return pd.concat(dataframes, ignore_index=True)
+
+
+def load_resolved_input_data(args) -> pd.DataFrame:
+    source_ids = parse_source_ids(args.source_ids)
+    if source_ids:
+        args.source_ids = ",".join(source_ids)
+        if args.ca_bundle is None:
+            return load_aggregated_source_data(source_ids, Path(args.source_catalog))
+        return load_aggregated_source_data(source_ids, Path(args.source_catalog), ca_bundle=args.ca_bundle)
+
+    apply_source_catalog_defaults(args)
+    return load_single_input_source(
+        csv_path=Path(args.csv_path),
+        input_format=args.input_format,
+        source_url=args.source_url,
+        ca_bundle=args.ca_bundle,
+    )
 
 
 def main() -> None:
@@ -47,21 +149,17 @@ def main() -> None:
     args = parse_args()
 
     try:
-        apply_source_catalog_defaults(args)
+        validate_source_selection(args)
+        df = load_resolved_input_data(args)
     except ValueError as error:
         print(error)
         return
 
-    csv_path = Path(args.csv_path)
-    if args.input_format != "remote_csv_v1" and not csv_path.exists():
-        print(f"CSV fails nav atrasts: {csv_path}")
-        return
+    if args.detect_price_conflicts:
+        df = annotate_price_conflicts(df)
 
-    try:
-        df = load_input_data(csv_path=csv_path, input_format=args.input_format, source_url=args.source_url)
-    except ValueError as error:
-        print(error)
-        return
+    if args.dedup:
+        df = deduplicate_results(df)
 
     df = filter_by_fuel_type(df, args.fuel_type)
     if args.city:
@@ -70,12 +168,12 @@ def main() -> None:
         df = filter_by_station_name(df, args.station)
 
     if df.empty:
-        print("Nav atrasti dati izv\u0113l\u0113tajiem filtriem")
+        print("Nav atrasti dati izvēlētajiem filtriem")
         return
 
     if args.report:
-        top_n_result, saved_paths = write_report_bundle(args, df)
-        print(build_report_summary(args, len(top_n_result), saved_paths))
+        top_n_result, saved_paths, provenance_stats = write_report_bundle(args, df)
+        print(build_report_summary(args, len(top_n_result), saved_paths, provenance_stats))
         return
 
     if args.summary_by_city:
@@ -110,7 +208,7 @@ def main() -> None:
 
     if output_path is not None:
         output_path.write_text(output_text, encoding="utf-8")
-        print(f"Rezult\u0101ts saglab\u0101ts fail\u0101: {output_path}")
+        print(f"Rezultāts saglabāts failā: {output_path}")
         return
 
     if args.output == "table":

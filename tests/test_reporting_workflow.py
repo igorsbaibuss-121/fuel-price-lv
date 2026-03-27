@@ -218,3 +218,137 @@ def test_main_report_ignores_output_and_output_file_for_main_result_printing(
     assert "Saglabāti faili:" in captured.out
     assert not custom_output.exists()
     assert (tmp_path / "output" / "diesel_top2.json").exists()
+
+
+def test_main_report_with_dedup_prints_provenance_stats(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    source_catalog_path = Path("data/source_catalog.json").resolve()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--source-ids",
+            "demo_standard,demo_excel_v1",
+            "--source-catalog",
+            str(source_catalog_path),
+            "--fuel-type",
+            "diesel",
+            "--top-n",
+            "10",
+            "--report",
+            "--dedup",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Deduplicēti ieraksti:" in captured.out
+    assert "Ar vairākiem avotiem apstiprināti:" in captured.out
+
+
+def test_main_report_with_detect_price_conflicts_prints_conflict_stats(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "fuel_price_lv.main.load_aggregated_source_data",
+        lambda _source_ids, _source_catalog_path: __import__("pandas").DataFrame(
+            [
+                {
+                    "station_name": "Neste",
+                    "address": "Kārļa Ulmaņa gatve 88 Rīga",
+                    "city": "Rīga",
+                    "fuel_type": "diesel",
+                    "price": 1.574,
+                    "source_id": "demo_standard",
+                },
+                {
+                    "station_name": "Neste",
+                    "address": "Kārļa Ulmaņa gatve 88",
+                    "city": "Rīga",
+                    "fuel_type": "diesel",
+                    "price": 1.579,
+                    "source_id": "demo_excel_v1",
+                },
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--source-ids",
+            "demo_standard,demo_excel_v1",
+            "--fuel-type",
+            "diesel",
+            "--top-n",
+            "10",
+            "--report",
+            "--detect-price-conflicts",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Cenu konflikti:" in captured.out
+    assert "Maksimālā cenu starpība:" in captured.out
+
+
+def test_main_report_with_live_multi_source_ids_prints_clean_source_label(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "fuel_price_lv.main.load_aggregated_source_data",
+        lambda _source_ids, _source_catalog_path: __import__("pandas").DataFrame(
+            [
+                {
+                    "station_name": "Circle K Brīvības",
+                    "address": "Brīvības iela 1, Rīga",
+                    "city": "Rīga",
+                    "fuel_type": "diesel",
+                    "price": 1.574,
+                    "source_id": "circlek_live",
+                },
+                {
+                    "station_name": "Neste Brīvības",
+                    "address": "Brīvības iela 1, Rīga",
+                    "city": "Rīga",
+                    "fuel_type": "diesel",
+                    "price": 1.579,
+                    "source_id": "neste_live",
+                },
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--source-ids",
+            "circlek_live,neste_live",
+            "--fuel-type",
+            "diesel",
+            "--top-n",
+            "10",
+            "--report",
+            "--dedup",
+            "--detect-price-conflicts",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Avots: circlek_live,neste_live" in captured.out
+    assert "Deduplicēti ieraksti:" in captured.out
+    assert "Ar vairākiem avotiem apstiprināti:" in captured.out
+    assert "Cenu konflikti:" in captured.out
+    assert "Maksimālā cenu starpība:" in captured.out

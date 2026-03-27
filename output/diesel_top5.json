@@ -1,0 +1,42 @@
+[
+  {
+    "station_name":"Neste Ulmaņa gatve<\/strong><br \/>",
+    "address":"Ulmaņa gatve 84, Rīga<\/span><\/td>",
+    "city":"Rīga<\/span><\/td>",
+    "fuel_type":"diesel",
+    "price":"2.117",
+    "google_maps_url":"https:\/\/www.google.com\/maps\/search\/?api=1&query=Ulma%C5%86a+gatve+84%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E"
+  },
+  {
+    "station_name":"Neste Jugla<\/strong><br \/>",
+    "address":"Brīvības gatve 386, Rīga<\/span><\/span><\/td>",
+    "city":"Rīga<\/span><\/span><\/td>",
+    "fuel_type":"diesel",
+    "price":"2.117",
+    "google_maps_url":"https:\/\/www.google.com\/maps\/search\/?api=1&query=Br%C4%ABv%C4%ABbas+gatve+386%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Fspan%3E%3C%2Ftd%3E%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Fspan%3E%3C%2Ftd%3E"
+  },
+  {
+    "station_name":"Neste Lucavsala<\/strong><br \/>",
+    "address":"Lucavsalas iela 1, Rīga<\/span><\/td>",
+    "city":"Rīga<\/span><\/td>",
+    "fuel_type":"diesel",
+    "price":"2.117",
+    "google_maps_url":"https:\/\/www.google.com\/maps\/search\/?api=1&query=Lucavsalas+iela+1%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E"
+  },
+  {
+    "station_name":"Neste Krasta<\/strong><br \/>",
+    "address":"Krasta iela 68, Rīga<\/span><\/td>",
+    "city":"Rīga<\/span><\/td>",
+    "fuel_type":"diesel",
+    "price":"2.117",
+    "google_maps_url":"https:\/\/www.google.com\/maps\/search\/?api=1&query=Krasta+iela+68%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E"
+  },
+  {
+    "station_name":"Neste Latgales<\/strong><br \/>",
+    "address":"Latgales iela 427b, Rīga<\/span><\/td>",
+    "city":"Rīga<\/span><\/td>",
+    "fuel_type":"diesel",
+    "price":"2.117",
+    "google_maps_url":"https:\/\/www.google.com\/maps\/search\/?api=1&query=Latgales+iela+427b%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E%2C+R%C4%ABga%3C%2Fspan%3E%3C%2Ftd%3E"
+  }
+]
