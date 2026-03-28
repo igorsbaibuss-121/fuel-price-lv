@@ -36,6 +36,76 @@ def test_main_report_creates_expected_files_in_output(
     assert (tmp_path / "output" / "diesel_summary_by_city.csv").exists()
 
 
+def test_main_save_history_creates_timestamped_snapshot(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    csv_path = Path("data/sample_prices.csv").resolve()
+
+    class FixedDateTime:
+        @classmethod
+        def now(cls):
+            return __import__("datetime").datetime(2026, 3, 27, 10, 15, 0)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("fuel_price_lv.services.datetime", FixedDateTime)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--csv-path",
+            str(csv_path),
+            "--fuel-type",
+            "diesel",
+            "--top-n",
+            "2",
+            "--save-history",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    history_path = tmp_path / "output" / "history" / "2026-03-27_101500_standard_diesel.csv"
+    assert history_path.exists()
+    assert "Top 2 diesel cenas" in captured.out
+
+
+def test_main_report_with_save_history_prints_history_snapshot_path(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    csv_path = Path("data/sample_prices.csv").resolve()
+
+    class FixedDateTime:
+        @classmethod
+        def now(cls):
+            return __import__("datetime").datetime(2026, 3, 27, 10, 15, 0)
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("fuel_price_lv.services.datetime", FixedDateTime)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--csv-path",
+            str(csv_path),
+            "--fuel-type",
+            "diesel",
+            "--top-n",
+            "2",
+            "--report",
+            "--save-history",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "History snapshot: output/history/2026-03-27_101500_standard_diesel.csv" in captured.out
+    assert (tmp_path / "output" / "history" / "2026-03-27_101500_standard_diesel.csv").exists()
+
+
 def test_main_report_prints_concise_summary_with_source_id(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
@@ -97,6 +167,33 @@ def test_main_report_with_filters_and_no_rows_does_not_create_report_files(
     captured = capsys.readouterr()
     assert "Nav atrasti dati izv" in captured.out
     assert not (tmp_path / "output").exists()
+
+
+def test_main_save_history_does_not_create_snapshot_for_empty_results(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    csv_path = Path("data/sample_prices.csv").resolve()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--csv-path",
+            str(csv_path),
+            "--fuel-type",
+            "diesel",
+            "--city",
+            "Valmiera",
+            "--save-history",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Nav atrasti dati izv" in captured.out
+    assert not (tmp_path / "output" / "history").exists()
 
 
 def test_main_non_report_behavior_remains_unchanged_when_output_file_is_used(

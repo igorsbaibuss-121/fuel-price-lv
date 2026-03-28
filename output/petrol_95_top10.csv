@@ -1,0 +1,11 @@
+station_name,address,city,fuel_type,price,source_id,source_ids,source_count,has_price_conflict,min_price,max_price,price_range,price_values,price_source_count,google_maps_url
+Neste Imanta II,"Kurzemes pr. 15a, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Kurzemes+pr.+15a%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Senču,"Senču iela 2b, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Sen%C4%8Du+iela+2b%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Lielirbes,"Lielirbes iela 30, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Lielirbes+iela+30%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Ganību,"Rankas iela 2, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Rankas+iela+2%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Brīvības,"Brīvības gatve 253, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Br%C4%ABv%C4%ABbas+gatve+253%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Stārķu,"Dzelzavas iela 5, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Dzelzavas+iela+5%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Biķernieku,"Biķernieku iela 115a, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Bi%C4%B7ernieku+iela+115a%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Deglava,"A.Deglava iela 51a, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=A.Deglava+iela+51a%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Dzirnavu,"Dzirnavu iela 127, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Dzirnavu+iela+127%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Ģimnastikas,"Vienības gatve 77, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Vien%C4%ABbas+gatve+77%2C+R%C4%ABga%2C+R%C4%ABga

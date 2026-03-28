@@ -109,7 +109,13 @@ def write_report_bundle(args, df: pd.DataFrame, output_dir: Path | None = None) 
     return top_n_result, [top_n_csv_path, top_n_json_path, summary_csv_path], summary_stats
 
 
-def build_report_summary(args, result_count: int, saved_paths: list[Path], summary_stats: dict[str, float] | None = None) -> str:
+def build_report_summary(
+    args,
+    result_count: int,
+    saved_paths: list[Path],
+    summary_stats: dict[str, float] | None = None,
+    history_snapshot_path: Path | None = None,
+) -> str:
     summary_lines = [
         f"Avots: {build_report_source_label(args)}",
         f"Fuel type: {args.fuel_type}",
@@ -124,6 +130,8 @@ def build_report_summary(args, result_count: int, saved_paths: list[Path], summa
             summary_lines.append(f"Cenu konflikti: {summary_stats['conflict_count']}")
         if "max_price_range" in summary_stats:
             summary_lines.append(f"Maksimālā cenu starpība: {summary_stats['max_price_range']:.3f}")
+    if history_snapshot_path is not None:
+        summary_lines.append(f"History snapshot: {history_snapshot_path.as_posix()}")
     summary_lines.append("Saglabāti faili:")
     summary_lines.extend(f"- {path.as_posix()}" for path in saved_paths)
     return "\n".join(summary_lines)

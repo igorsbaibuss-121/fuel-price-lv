@@ -1,3 +1,6 @@
+from datetime import datetime
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -8,6 +11,8 @@ from fuel_price_lv.services import (
     build_dedup_key,
     build_default_output_filename,
     build_google_maps_search_url,
+    build_history_snapshot_filename,
+    build_history_source_label,
     build_price_conflict_key,
     build_result_title,
     deduplicate_results,
@@ -18,6 +23,7 @@ from fuel_price_lv.services import (
     load_data,
     normalize_text_for_compare,
     prepare_results,
+    save_history_snapshot,
     sort_by_price,
     summarize_cheapest_by_city,
 )
@@ -53,6 +59,56 @@ def test_build_default_output_filename_returns_summary_by_city_filename() -> Non
         summary_by_city=True,
     )
     assert result == "diesel_summary_by_city.csv"
+
+
+def test_build_history_source_label_prefers_source_id_then_source_ids_then_input_format() -> None:
+    assert build_history_source_label(source_id="circlek_live", source_ids="a,b", input_format="neste_lv_v1") == "circlek_live"
+    assert build_history_source_label(source_ids="circlek_live,neste_live", input_format="neste_lv_v1") == "circlek_live_neste_live"
+    assert build_history_source_label(input_format="neste_lv_v1") == "neste_lv_v1"
+
+
+def test_build_history_snapshot_filename_includes_timestamp_source_label_and_fuel_type() -> None:
+    result = build_history_snapshot_filename(
+        fuel_type="diesel",
+        source_label="circlek_live_neste_live",
+        timestamp=datetime(2026, 3, 27, 10, 15, 0),
+    )
+    assert result == "2026-03-27_101500_circlek_live_neste_live_diesel.csv"
+
+
+def test_save_history_snapshot_preserves_provenance_and_conflict_columns(tmp_path: Path) -> None:
+    filepath = tmp_path / "output" / "history" / "snapshot.csv"
+    df = pd.DataFrame(
+        [
+            {
+                "station_name": "Neste",
+                "address": "Brīvības iela 1",
+                "city": "Rīga",
+                "fuel_type": "diesel",
+                "price": "1.574",
+                "source_id": "circlek_live",
+                "source_ids": ["circlek_live", "neste_live"],
+                "source_count": 2,
+                "has_price_conflict": True,
+                "min_price": 1.574,
+                "max_price": 1.579,
+                "price_range": 0.005,
+                "price_values": [1.574, 1.579],
+                "price_source_count": 2,
+            }
+        ]
+    )
+
+    save_history_snapshot(df, filepath)
+
+    saved_text = filepath.read_text(encoding="utf-8")
+    assert "source_id" in saved_text
+    assert "source_ids" in saved_text
+    assert "source_count" in saved_text
+    assert "has_price_conflict" in saved_text
+    assert "price_values" in saved_text
+    assert "circlek_live|neste_live" in saved_text
+    assert "1.574|1.579" in saved_text
 
 
 def test_add_google_maps_url_column_adds_google_maps_url_column() -> None:

@@ -7,6 +7,7 @@ from fuel_price_lv.importers import load_input_data
 from fuel_price_lv.importers.circlek_lv_v1 import (
     build_circlek_dataset,
     load_circlek_lv_v1_data,
+    normalize_circlek_fuel_type,
     parse_circlek_prices,
     parse_circlek_stations,
 )
@@ -40,6 +41,11 @@ def test_parse_circlek_prices_extracts_network_wide_entries() -> None:
             "source_fuel_label": "Dmiles",
         },
     ]
+
+
+def test_normalize_circlek_fuel_type_maps_95_labels_to_petrol_95() -> None:
+    assert normalize_circlek_fuel_type("95miles") == "petrol_95"
+    assert normalize_circlek_fuel_type("Benzīns miles 95") == "petrol_95"
 
 
 def test_parse_circlek_prices_handles_station_specific_entry() -> None:
@@ -125,6 +131,31 @@ def test_build_circlek_dataset_expands_network_wide_and_matches_station_specific
     xtl_rows = result[result["fuel_type"] == "diesel_xtl"]
     assert len(xtl_rows) == 1
     assert xtl_rows.iloc[0]["station_name"] == "CIRCLE K KRASTA 2"
+
+
+def test_build_circlek_dataset_includes_petrol_95_rows() -> None:
+    prices = [
+        {"fuel_type": "petrol_95", "price": 1.654, "scope": "network", "station_address": None},
+    ]
+    stations = [
+        {
+            "station_name": "CIRCLE K KRASTA 2",
+            "address": "Krasta iela 93, Rīga, LV-1019, LV",
+            "city": "Rīga",
+            "station_url": "https://www.circlek.lv/station/circle-k-krasta-2",
+        },
+        {
+            "station_name": "CIRCLE K JUGLA",
+            "address": "Brīvības gatve 401, Rīga, LV-1024, LV",
+            "city": "Rīga",
+            "station_url": "https://www.circlek.lv/station/circle-k-jugla",
+        },
+    ]
+
+    result = build_circlek_dataset(prices, stations)
+
+    assert len(result) == 2
+    assert set(result["fuel_type"]) == {"petrol_95"}
 
 
 def test_load_input_data_supports_circlek_lv_v1_with_mocked_pages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -220,6 +251,50 @@ def test_main_supports_circlek_lv_v1_input_format(
 
     captured = capsys.readouterr()
     assert "Top 1 diesel cenas" in captured.out
+    assert "CIRCLE K KRASTA 2" in captured.out
+
+
+def test_main_supports_circlek_lv_v1_input_format_for_petrol_95(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "fuel_price_lv.importers.circlek_lv_v1.fetch_circlek_prices_page",
+        lambda: """
+        <table>
+          <tr><td>95miles</td><td>1.654 EUR</td><td>Degvielas cena visos DUS ir vienāda</td></tr>
+        </table>
+        """,
+    )
+    monkeypatch.setattr(
+        "fuel_price_lv.importers.circlek_lv_v1.fetch_circlek_station_list_page",
+        lambda: """
+        <ul>
+          <li><a href="/station/circle-k-krasta-2">CIRCLE K KRASTA 2</a></li>
+        </ul>
+        """,
+    )
+    monkeypatch.setattr(
+        "fuel_price_lv.importers.circlek_lv_v1.fetch_circlek_station_page",
+        lambda _station_url: "<h2>Krasta iela 93, Rīga, LV-1019, LV</h2>",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input-format",
+            "circlek_lv_v1",
+            "--fuel-type",
+            "petrol_95",
+            "--top-n",
+            "1",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Top 1 petrol_95 cenas" in captured.out
     assert "CIRCLE K KRASTA 2" in captured.out
 
 

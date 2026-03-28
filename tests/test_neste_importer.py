@@ -8,6 +8,7 @@ from fuel_price_lv.importers.neste_lv_v1 import (
     build_neste_dataset,
     is_valid_neste_station_record,
     load_neste_lv_v1_data,
+    normalize_neste_fuel_type,
     parse_neste_prices,
     parse_neste_stations,
 )
@@ -39,6 +40,10 @@ def test_parse_neste_prices_extracts_network_wide_entries() -> None:
             "source_fuel_label": "Neste Futura 95",
         },
     ]
+
+
+def test_normalize_neste_fuel_type_maps_95_label_to_petrol_95() -> None:
+    assert normalize_neste_fuel_type("Neste Futura 95") == "petrol_95"
 
 
 def test_parse_neste_stations_extracts_station_names_and_addresses() -> None:
@@ -255,6 +260,45 @@ def test_main_supports_neste_lv_v1_input_format(
 
     captured = capsys.readouterr()
     assert "Top 1 diesel cenas" in captured.out
+    assert "Neste A7" in captured.out
+
+
+def test_main_supports_neste_lv_v1_input_format_for_petrol_95(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "fuel_price_lv.importers.neste_lv_v1.fetch_neste_prices_page",
+        lambda: """
+        <table>
+          <tr><td>Neste Futura 95</td><td>1.734 EUR</td><td>Visās stacijās cenas vienādas</td></tr>
+        </table>
+        """,
+    )
+    monkeypatch.setattr(
+        "fuel_price_lv.importers.neste_lv_v1.fetch_neste_station_list_page",
+        lambda: """
+        <strong>Neste A7</strong><br />
+        <span>Rīgas iela 1, Ķekava</span>
+        """,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--input-format",
+            "neste_lv_v1",
+            "--fuel-type",
+            "petrol_95",
+            "--top-n",
+            "1",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Top 1 petrol_95 cenas" in captured.out
     assert "Neste A7" in captured.out
 
 

@@ -9,12 +9,15 @@ from .reporting import build_report_summary, render_output_text, write_report_bu
 from .services import (
     annotate_price_conflicts,
     build_default_output_filename,
+    build_history_snapshot_filename,
+    build_history_source_label,
     build_result_title,
     deduplicate_results,
     filter_by_city,
     filter_by_fuel_type,
     filter_by_station_name,
     prepare_results,
+    save_history_snapshot,
     summarize_cheapest_by_city,
 )
 from .source_catalog import get_multiple_source_configs, get_source_config
@@ -144,6 +147,18 @@ def load_resolved_input_data(args) -> pd.DataFrame:
     )
 
 
+def build_history_snapshot_path(args) -> Path:
+    source_label = build_history_source_label(
+        source_id=args.source_id,
+        source_ids=args.source_ids,
+        input_format=args.input_format,
+    )
+    return Path("output") / "history" / build_history_snapshot_filename(
+        fuel_type=args.fuel_type,
+        source_label=source_label,
+    )
+
+
 def main() -> None:
     configure_stdout_encoding()
     args = parse_args()
@@ -173,13 +188,20 @@ def main() -> None:
 
     if args.report:
         top_n_result, saved_paths, provenance_stats = write_report_bundle(args, df)
-        print(build_report_summary(args, len(top_n_result), saved_paths, provenance_stats))
+        history_snapshot_path = None
+        if args.save_history:
+            history_snapshot_path = build_history_snapshot_path(args)
+            save_history_snapshot(top_n_result, history_snapshot_path)
+        print(build_report_summary(args, len(top_n_result), saved_paths, provenance_stats, history_snapshot_path))
         return
 
     if args.summary_by_city:
         result = summarize_cheapest_by_city(df)
     else:
         result = prepare_results(df, args.top_n, args.sort_by)
+
+    if args.save_history:
+        save_history_snapshot(result, build_history_snapshot_path(args))
 
     title = build_result_title(
         fuel_type=args.fuel_type,

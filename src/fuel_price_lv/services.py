@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -222,6 +223,45 @@ def build_default_output_filename(
         filename_parts.append(normalize_filename_part(station_query))
     filename_parts.append(f"top{top_n}")
     return f"{'_'.join(filename_parts)}.{normalized_output_format}"
+
+
+def build_history_source_label(
+    source_id: str | None = None,
+    source_ids: str | None = None,
+    input_format: str | None = None,
+) -> str:
+    if source_id:
+        return normalize_filename_part(source_id)
+    if source_ids:
+        return normalize_filename_part(source_ids.replace(",", "_"))
+    if input_format:
+        return normalize_filename_part(input_format)
+    return "input"
+
+
+def build_history_snapshot_filename(
+    fuel_type: str,
+    source_label: str,
+    timestamp: datetime | None = None,
+) -> str:
+    snapshot_time = timestamp or datetime.now()
+    return f"{snapshot_time.strftime('%Y-%m-%d_%H%M%S')}_{normalize_filename_part(source_label)}_{normalize_filename_part(fuel_type)}.csv"
+
+
+def save_history_snapshot(df: pd.DataFrame, filepath: Path) -> None:
+    history_df = add_google_maps_url_column(df)
+    if "source_ids" in history_df.columns:
+        history_df = history_df.copy()
+        history_df["source_ids"] = history_df["source_ids"].map(
+            lambda value: "|".join(value) if isinstance(value, list) else value
+        )
+    if "price_values" in history_df.columns:
+        history_df = history_df.copy()
+        history_df["price_values"] = history_df["price_values"].map(
+            lambda value: "|".join(f"{item:.3f}" for item in value) if isinstance(value, list) else value
+        )
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    history_df.to_csv(filepath, index=False)
 
 
 def build_google_maps_search_url(address: str, city: str | None = None) -> str:

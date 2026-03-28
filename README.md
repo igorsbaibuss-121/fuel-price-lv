@@ -54,6 +54,7 @@ python -m src.fuel_price_lv.main --fuel-type diesel
 - `--output` - izvades formats: `table`, `csv` vai `json`
 - `--output-file` - saglaba rezultatu lietotaja noraditaja faila cela
 - `--save` - saglaba rezultatu mape `output/` ar automatiski generetu faila nosaukumu
+- `--save-history` - saglaba timestamped CSV snapshot mape `output/history/`
 - `--summary-by-city` - rada letako izveletas degvielas cenu katra pilseta
 - `--report` - izveido report bundle mape `output/`
 - `--dedup` - palīdz samazināt dublikātus, īpaši vairāku avotu (`--source-ids`) palaidienos
@@ -182,6 +183,16 @@ fuel-price-lv --source-ids demo_standard,demo_excel_v1 --fuel-type diesel --top-
 fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --report
 ```
 
+### 21a. Palaist live multi-source workflow priekš petrol_95
+```powershell
+fuel-price-lv --source-ids circlek_live,neste_live --fuel-type petrol_95 --top-n 10 --dedup --detect-price-conflicts --report
+```
+
+### 22. Saglabāt live workflow history snapshot
+```powershell
+fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --report --save-history
+```
+
 ## Live source troubleshooting
 - Ja publiskie web avoti neatveras uzņēmuma tīklā ar SSL pārbaudes kļūdu, iestati `SSL_CERT_FILE` vai `REQUESTS_CA_BUNDLE`.
 - Alternatīvi vari palaist CLI ar `--ca-bundle path/to/company-ca.pem`.
@@ -190,6 +201,8 @@ fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10
 - `diesel_top3.csv`
 - `diesel_top3.json`
 - `diesel_summary_by_city.csv`
+
+`--save-history` papildus saglabā timestamped CSV snapshot mape `output/history/`.
 
 ## Piezime par izvadi
 - `table` izvadei konsole tiek pievienots cilvekam saprotams virsraksts

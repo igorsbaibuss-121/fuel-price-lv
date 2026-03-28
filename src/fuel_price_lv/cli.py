@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--save", action="store_true")
     parser.add_argument("--summary-by-city", action="store_true")
     parser.add_argument("--report", action="store_true")
+    parser.add_argument("--save-history", action="store_true")
     parser.add_argument("--dedup", action="store_true")
     parser.add_argument("--detect-price-conflicts", action="store_true")
     return parser.parse_args()

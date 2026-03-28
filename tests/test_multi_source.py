@@ -65,6 +65,57 @@ def test_load_aggregated_source_data_supports_live_catalog_source_ids(monkeypatc
     assert list(result["station_name"]) == ["Circle K", "Neste"]
 
 
+def test_main_supports_live_multi_source_flow_for_petrol_95(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        "fuel_price_lv.main.load_aggregated_source_data",
+        lambda _source_ids, _source_catalog_path: pd.DataFrame(
+            [
+                {
+                    "station_name": "Circle K Brīvības",
+                    "address": "Brīvības iela 1, Rīga",
+                    "city": "Rīga",
+                    "fuel_type": "petrol_95",
+                    "price": 1.654,
+                    "source_id": "circlek_live",
+                },
+                {
+                    "station_name": "Neste Brīvības",
+                    "address": "Brīvības iela 1, Rīga",
+                    "city": "Rīga",
+                    "fuel_type": "petrol_95",
+                    "price": 1.659,
+                    "source_id": "neste_live",
+                },
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "prog",
+            "--source-ids",
+            "circlek_live,neste_live",
+            "--fuel-type",
+            "petrol_95",
+            "--top-n",
+            "10",
+            "--dedup",
+            "--detect-price-conflicts",
+            "--report",
+        ],
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Avots: circlek_live,neste_live" in captured.out
+    assert "Fuel type: petrol_95" in captured.out
+    assert "Cenu konflikti:" in captured.out
+
+
 def test_main_supports_multiple_sources_via_source_ids_csv_output(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
