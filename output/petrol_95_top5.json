@@ -1,0 +1,42 @@
+[
+  {
+    "station_name":"CIRCLE K ULMANIS 1",
+    "address":"",
+    "city":"",
+    "fuel_type":"petrol_95",
+    "price":"1.814",
+    "google_maps_url":""
+  },
+  {
+    "station_name":"CIRCLE K LIEPĀJA 1",
+    "address":"",
+    "city":"",
+    "fuel_type":"petrol_95",
+    "price":"1.814",
+    "google_maps_url":""
+  },
+  {
+    "station_name":"CIRCLE K ZIEPNIEKKALNS",
+    "address":"",
+    "city":"",
+    "fuel_type":"petrol_95",
+    "price":"1.814",
+    "google_maps_url":""
+  },
+  {
+    "station_name":"CIRCLE K ULMANIS 2",
+    "address":"",
+    "city":"",
+    "fuel_type":"petrol_95",
+    "price":"1.814",
+    "google_maps_url":""
+  },
+  {
+    "station_name":"CIRCLE K IMANTA",
+    "address":"",
+    "city":"",
+    "fuel_type":"petrol_95",
+    "price":"1.814",
+    "google_maps_url":""
+  }
+]

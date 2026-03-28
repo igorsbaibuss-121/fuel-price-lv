@@ -80,3 +80,11 @@ def test_repo_source_catalog_resolves_neste_live() -> None:
     result = get_source_config("neste_live", catalog_path)
 
     assert result == {"source_id": "neste_live", "input_format": "neste_lv_v1"}
+
+
+def test_repo_source_catalog_resolves_virsi_live() -> None:
+    catalog_path = Path("data/source_catalog.json")
+
+    result = get_source_config("virsi_live", catalog_path)
+
+    assert result == {"source_id": "virsi_live", "input_format": "virsi_lv_v1"}

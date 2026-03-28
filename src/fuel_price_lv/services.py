@@ -17,6 +17,8 @@ def validate_required_columns(df: pd.DataFrame) -> None:
 def load_data(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     validate_required_columns(df)
+    for column in ("address", "city"):
+        df[column] = df[column].map(lambda value: "" if value is None or pd.isna(value) else str(value))
     return df
 
 
@@ -264,10 +266,27 @@ def save_history_snapshot(df: pd.DataFrame, filepath: Path) -> None:
     history_df.to_csv(filepath, index=False)
 
 
-def build_google_maps_search_url(address: str, city: str | None = None) -> str:
-    query = address.strip()
-    if city is not None:
-        query = f"{query}, {city.strip()}"
+def normalize_google_maps_query_part(value: object) -> str:
+    if value is None:
+        return ""
+    if pd.isna(value):
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
+def build_google_maps_search_url(address: object, city: object = None) -> str:
+    normalized_address = normalize_google_maps_query_part(address)
+    normalized_city = normalize_google_maps_query_part(city)
+    if normalized_address and normalized_city:
+        query = f"{normalized_address}, {normalized_city}"
+    elif normalized_address:
+        query = normalized_address
+    elif normalized_city:
+        query = normalized_city
+    else:
+        return ""
     return f"https://www.google.com/maps/search/?api=1&query={quote_plus(query)}"
 
 

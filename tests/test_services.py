@@ -82,8 +82,8 @@ def test_save_history_snapshot_preserves_provenance_and_conflict_columns(tmp_pat
         [
             {
                 "station_name": "Neste",
-                "address": "Brīvības iela 1",
-                "city": "Rīga",
+                "address": "BrÄ«vÄ«bas iela 1",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": "1.574",
                 "source_id": "circlek_live",
@@ -124,7 +124,7 @@ def test_add_google_maps_url_column_does_not_mutate_original_dataframe() -> None
 
 
 def test_add_google_maps_url_column_generates_encoded_url_from_address_and_city() -> None:
-    df = pd.DataFrame([{"address": "Brīvības iela 1", "city": "Rīga"}])
+    df = pd.DataFrame([{"address": "BrÄ«vÄ«bas iela 1", "city": "RÄ«ga"}])
     result = add_google_maps_url_column(df)
     assert (
         result.loc[0, "google_maps_url"]
@@ -148,31 +148,57 @@ def test_build_google_maps_search_url_trims_surrounding_whitespace() -> None:
 
 
 def test_build_google_maps_search_url_encodes_spaces_and_non_ascii_characters() -> None:
-    result = build_google_maps_search_url("Brīvības iela 1", "Rīga")
+    result = build_google_maps_search_url("BrÄ«vÄ«bas iela 1", "RÄ«ga")
     assert result == "https://www.google.com/maps/search/?api=1&query=Br%C4%ABv%C4%ABbas+iela+1%2C+R%C4%ABga"
 
 
+def test_build_google_maps_search_url_with_empty_address_uses_city() -> None:
+    result = build_google_maps_search_url("", "Riga")
+    assert result == "https://www.google.com/maps/search/?api=1&query=Riga"
+
+
+def test_build_google_maps_search_url_with_empty_city_uses_address() -> None:
+    result = build_google_maps_search_url("Brivibas iela 1", "")
+    assert result == "https://www.google.com/maps/search/?api=1&query=Brivibas+iela+1"
+
+
+def test_build_google_maps_search_url_with_both_empty_returns_empty_string() -> None:
+    result = build_google_maps_search_url("", "")
+    assert result == ""
+
+
+def test_build_google_maps_search_url_with_nan_address_and_city_returns_empty_string() -> None:
+    result = build_google_maps_search_url(float("nan"), float("nan"))
+    assert result == ""
+
+
+def test_add_google_maps_url_column_handles_nan_address_and_city() -> None:
+    df = pd.DataFrame([{"address": float("nan"), "city": float("nan")}])
+    result = add_google_maps_url_column(df)
+    assert result.loc[0, "google_maps_url"] == ""
+
+
 def test_normalize_text_for_compare_normalizes_case_and_whitespace() -> None:
-    result = normalize_text_for_compare("  KĀrļa   Ulmaņa   GATVE 88  ")
-    assert result == "kārļa ulmaņa gatve 88"
+    result = normalize_text_for_compare("  KÄ€rÄ¼a   UlmaÅ†a   GATVE 88  ")
+    assert result == "kÄrÄ¼a ulmaÅ†a gatve 88"
 
 
 def test_build_canonical_address_removes_trailing_city_when_present() -> None:
-    result = build_canonical_address("Kārļa Ulmaņa gatve 88 Rīga", "Rīga")
-    assert result == "kārļa ulmaņa gatve 88"
+    result = build_canonical_address("KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga", "RÄ«ga")
+    assert result == "kÄrÄ¼a ulmaÅ†a gatve 88"
 
 
 def test_build_canonical_address_preserves_address_when_city_not_duplicated() -> None:
-    result = build_canonical_address("Brīvības iela 100", "Rīga")
-    assert result == "brīvības iela 100"
+    result = build_canonical_address("BrÄ«vÄ«bas iela 100", "RÄ«ga")
+    assert result == "brÄ«vÄ«bas iela 100"
 
 
 def test_build_dedup_key_uses_canonical_address_and_numeric_price() -> None:
     first_row = pd.Series(
         {
             "station_name": "Neste",
-            "address": "Kārļa Ulmaņa gatve 88 Rīga",
-            "city": "Rīga",
+            "address": "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga",
+            "city": "RÄ«ga",
             "fuel_type": "diesel",
             "price": 1.574,
         }
@@ -180,8 +206,8 @@ def test_build_dedup_key_uses_canonical_address_and_numeric_price() -> None:
     second_row = pd.Series(
         {
             "station_name": "  NESTE ",
-            "address": "Kārļa Ulmaņa gatve 88",
-            "city": "Rīga",
+            "address": "KÄrÄ¼a UlmaÅ†a gatve 88",
+            "city": "RÄ«ga",
             "fuel_type": " DIESEL ",
             "price": "1.574",
         }
@@ -193,16 +219,16 @@ def test_build_price_conflict_key_matches_trailing_city_variation() -> None:
     first_row = pd.Series(
         {
             "station_name": "Neste",
-            "address": "Kārļa Ulmaņa gatve 88 Rīga",
-            "city": "Rīga",
+            "address": "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga",
+            "city": "RÄ«ga",
             "fuel_type": "diesel",
         }
     )
     second_row = pd.Series(
         {
             "station_name": "NESTE",
-            "address": "Kārļa Ulmaņa gatve 88",
-            "city": "Rīga",
+            "address": "KÄrÄ¼a UlmaÅ†a gatve 88",
+            "city": "RÄ«ga",
             "fuel_type": "DIESEL",
         }
     )
@@ -214,16 +240,16 @@ def test_annotate_price_conflicts_marks_different_prices_as_conflict() -> None:
         [
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88 Rīga",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.574,
                 "source_id": "demo_standard",
             },
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.579,
                 "source_id": "demo_excel_v1",
@@ -246,15 +272,15 @@ def test_annotate_price_conflicts_marks_same_prices_as_not_conflict() -> None:
         [
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88 Rīga",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.574,
             },
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.574,
             },
@@ -276,8 +302,8 @@ def test_deduplicate_results_removes_near_duplicates_and_keeps_first_row_order()
         [
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88 Rīga",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.574,
                 "source_id": "demo_standard",
@@ -290,8 +316,8 @@ def test_deduplicate_results_removes_near_duplicates_and_keeps_first_row_order()
             },
             {
                 "station_name": "  Neste  ",
-                "address": "Kārļa Ulmaņa gatve 88",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88",
+                "city": "RÄ«ga",
                 "fuel_type": " DIESEL ",
                 "price": 1.574,
                 "source_id": "demo_excel_v1",
@@ -304,8 +330,8 @@ def test_deduplicate_results_removes_near_duplicates_and_keeps_first_row_order()
             },
             {
                 "station_name": "Circle K",
-                "address": "Brīvības iela 100",
-                "city": "Rīga",
+                "address": "BrÄ«vÄ«bas iela 100",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.589,
                 "source_id": "demo_standard",
@@ -329,7 +355,7 @@ def test_deduplicate_results_removes_near_duplicates_and_keeps_first_row_order()
     assert bool(result.iloc[0]["has_price_conflict"]) is True
     assert result.iloc[0]["price_values"] == [1.574, 1.579]
     assert result.iloc[0]["price_source_count"] == 2
-    assert result.iloc[0]["address"] == "Kārļa Ulmaņa gatve 88 Rīga"
+    assert result.iloc[0]["address"] == "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga"
 
 
 def test_deduplicate_results_works_without_source_id_column() -> None:
@@ -337,15 +363,15 @@ def test_deduplicate_results_works_without_source_id_column() -> None:
         [
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88 Rīga",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88 RÄ«ga",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.574,
             },
             {
                 "station_name": "Neste",
-                "address": "Kārļa Ulmaņa gatve 88",
-                "city": "Rīga",
+                "address": "KÄrÄ¼a UlmaÅ†a gatve 88",
+                "city": "RÄ«ga",
                 "fuel_type": "diesel",
                 "price": 1.574,
             },
@@ -366,17 +392,17 @@ def test_build_result_title_returns_base_title() -> None:
 
 def test_build_result_title_appends_city() -> None:
     result = build_result_title("diesel", 5, city="Riga")
-    assert result == "Top 5 diesel cenas pilsētā: Riga"
+    assert result == "Top 5 diesel cenas pilsÄ“tÄ: Riga"
 
 
 def test_build_result_title_appends_station_query_without_city() -> None:
     result = build_result_title("diesel", 5, station_query="Neste")
-    assert result == "Top 5 diesel cenas stacijām, kas satur: Neste"
+    assert result == "Top 5 diesel cenas stacijÄm, kas satur: Neste"
 
 
 def test_build_result_title_appends_station_query_after_city() -> None:
     result = build_result_title("diesel", 5, city="Riga", station_query="Neste")
-    assert result == "Top 5 diesel cenas pilsētā: Riga, stacijām, kas satur: Neste"
+    assert result == "Top 5 diesel cenas pilsÄ“tÄ: Riga, stacijÄm, kas satur: Neste"
 
 
 def test_build_result_title_ignores_other_arguments_for_summary_by_city() -> None:
@@ -387,7 +413,7 @@ def test_build_result_title_ignores_other_arguments_for_summary_by_city() -> Non
         station_query="Neste",
         summary_by_city=True,
     )
-    assert result == "Lētākā diesel cena katrā pilsētā"
+    assert result == "LÄ“tÄkÄ diesel cena katrÄ pilsÄ“tÄ"
 
 
 def test_filter_by_fuel_type_returns_only_matching_rows() -> None:
@@ -556,5 +582,28 @@ def test_load_data_raises_when_required_columns_are_missing(tmp_path) -> None:
             }
         ]
     ).to_csv(csv_path, index=False)
-    with pytest.raises(ValueError, match="CSV failā trūkst obligātās kolonnas: price"):
+    with pytest.raises(ValueError, match="CSV failÄ trÅ«kst obligÄtÄs kolonnas: price"):
         load_data(csv_path)
+
+
+def test_load_data_normalizes_missing_address_and_city_to_empty_strings(tmp_path: Path) -> None:
+    csv_path = tmp_path / "fuel_prices.csv"
+    pd.DataFrame(
+        [
+            {
+                "station_name": "Circle K",
+                "address": None,
+                "city": float("nan"),
+                "fuel_type": "petrol_95",
+                "price": 1.654,
+            }
+        ]
+    ).to_csv(csv_path, index=False)
+
+    result = load_data(csv_path)
+
+    assert result.loc[0, "address"] == ""
+    assert result.loc[0, "city"] == ""
+    assert result.loc[0, "station_name"] == "Circle K"
+    assert result.loc[0, "fuel_type"] == "petrol_95"
+    assert result.loc[0, "price"] == 1.654

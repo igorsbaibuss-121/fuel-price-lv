@@ -1,6 +1,9 @@
 from html import unescape
+import os
 from pathlib import Path
 import re
+import sys
+import time
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -11,42 +14,51 @@ from .common import normalize_price_value, normalize_text_value
 CIRCLEK_PRICES_URL = "https://www.circlek.lv/degviela-miles/degvielas-cenas"
 CIRCLEK_STATIONS_URL = "https://www.circlek.lv/stations"
 CIRCLEK_BASE_URL = "https://www.circlek.lv"
+CIRCLEK_FETCH_TIMEOUT_SECONDS = 15
+CIRCLEK_DEBUG_HTML_ENV_VAR = "FUEL_PRICE_LV_DEBUG_HTML"
+CIRCLEK_DEBUG_STATIONS_HTML_PATH = Path("output") / "_debug_circlek_stations.html"
+CIRCLEK_CACHE_PATH = Path("output") / "cache" / "circlek_latest.csv"
+CIRCLEK_DATASET_COLUMNS = ["station_name", "address", "city", "fuel_type", "price"]
+
+
+def log_circlek_timing(stage_name: str, started_at: float) -> None:
+    duration_seconds = time.perf_counter() - started_at
+    print(f"[CIRCLEK DEBUG] {stage_name}: {duration_seconds:.3f}s", file=sys.stderr)
+
+
+def maybe_write_circlek_debug_html(stations_html: str) -> None:
+    if os.getenv(CIRCLEK_DEBUG_HTML_ENV_VAR) != "1":
+        return
+    CIRCLEK_DEBUG_STATIONS_HTML_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CIRCLEK_DEBUG_STATIONS_HTML_PATH.write_text(stations_html, encoding="utf-8")
+    print(f"[CIRCLEK DEBUG] stations html saved: {CIRCLEK_DEBUG_STATIONS_HTML_PATH}", file=sys.stderr)
+
+
+def format_circlek_fetch_error(resource_name: str, error: ValueError) -> ValueError:
+    if "taimauts" in str(error).lower():
+        return ValueError(f"NeizdevÄs nolasÄ«t Circle K {resource_name}: taimauts")
+    return ValueError(f"NeizdevÄs nolasÄ«t Circle K {resource_name}: {error}")
 
 
 def fetch_circlek_prices_page(ca_bundle: str | None = None) -> str:
     try:
-        return fetch_url_text(CIRCLEK_PRICES_URL, ca_bundle=ca_bundle)
+        return fetch_url_text(CIRCLEK_PRICES_URL, timeout=CIRCLEK_FETCH_TIMEOUT_SECONDS, ca_bundle=ca_bundle)
     except ValueError as error:
-        raise ValueError(f"Neizdevās nolasīt Circle K cenu lapu: {error}") from error
-
-
-def extract_station_links(html: str) -> list[dict[str, str]]:
-    station_links: list[dict[str, str]] = []
-    seen_urls: set[str] = set()
-    for href, label in re.findall(r'<a[^>]+href="([^"]*/station/[^"]+)"[^>]*>(.*?)</a>', html, flags=re.IGNORECASE | re.DOTALL):
-        station_url = urljoin(CIRCLEK_BASE_URL, unescape(href))
-        if station_url in seen_urls:
-            continue
-        station_name = normalize_text_value(strip_tags(label))
-        if not station_name:
-            continue
-        seen_urls.add(station_url)
-        station_links.append({"station_name": station_name, "station_url": station_url})
-    return station_links
+        raise format_circlek_fetch_error("cenu lapu", error) from error
 
 
 def fetch_circlek_station_page(station_url: str, ca_bundle: str | None = None) -> str:
     try:
-        return fetch_url_text(station_url, ca_bundle=ca_bundle)
+        return fetch_url_text(station_url, timeout=CIRCLEK_FETCH_TIMEOUT_SECONDS, ca_bundle=ca_bundle)
     except ValueError as error:
-        raise ValueError(f"Neizdevās nolasīt Circle K staciju sarakstu: {error}") from error
+        raise format_circlek_fetch_error("stacijas lapu", error) from error
 
 
 def fetch_circlek_station_list_page(ca_bundle: str | None = None) -> str:
     try:
-        return fetch_url_text(CIRCLEK_STATIONS_URL, ca_bundle=ca_bundle)
+        return fetch_url_text(CIRCLEK_STATIONS_URL, timeout=CIRCLEK_FETCH_TIMEOUT_SECONDS, ca_bundle=ca_bundle)
     except ValueError as error:
-        raise ValueError(f"Neizdevās nolasīt Circle K staciju sarakstu: {error}") from error
+        raise format_circlek_fetch_error("staciju sarakstu", error) from error
 
 
 def strip_tags(value: str) -> str:
@@ -57,16 +69,22 @@ def normalize_circlek_fuel_type(fuel_label: str) -> str:
     normalized_label = normalize_text_value(fuel_label, lowercase=True)
     fuel_type_mapping = {
         "95miles": "petrol_95",
-        "benzīns miles 95": "petrol_95",
+        "benzÄ«ns miles 95": "petrol_95",
+        "benzÃ¤Â«ns miles 95": "petrol_95",
         "98miles+": "petrol_98",
-        "benzīns miles+ 98": "petrol_98",
+        "benzÄ«ns miles+ 98": "petrol_98",
+        "benzÃ¤Â«ns miles+ 98": "petrol_98",
         "dmiles": "diesel",
-        "dīzeļdegviela miles": "diesel",
+        "dÄ«zeÄ¼degviela miles": "diesel",
+        "dÃ¤Â«zeÃ¤Â¼degviela miles": "diesel",
         "dmiles+": "diesel_plus",
-        "dīzeļdegviela miles+": "diesel_plus",
+        "dÄ«zeÄ¼degviela miles+": "diesel_plus",
+        "dÃ¤Â«zeÃ¤Â¼degviela miles+": "diesel_plus",
         "miles+ xtl": "diesel_xtl",
-        "dīzeļdegviela miles+ xtl": "diesel_xtl",
-        "autogāze": "lpg",
+        "dÄ«zeÄ¼degviela miles+ xtl": "diesel_xtl",
+        "dÃ¤Â«zeÃ¤Â¼degviela miles+ xtl": "diesel_xtl",
+        "autogÄze": "lpg",
+        "autogÃ¤Âze": "lpg",
     }
     if normalized_label in fuel_type_mapping:
         return fuel_type_mapping[normalized_label]
@@ -131,35 +149,58 @@ def parse_circlek_station_detail(html: str, station_name: str, station_url: str)
     }
 
 
-def parse_circlek_stations(html: str, ca_bundle: str | None = None) -> list[dict]:
+def extract_station_list_items(html: str) -> list[str]:
+    list_items = re.findall(r"<li[^>]*>(.*?)</li>", html, flags=re.IGNORECASE | re.DOTALL)
+    if list_items:
+        return list_items
+    return re.findall(r'<div[^>]+class="[^"]*station[^"]*"[^>]*>(.*?)</div>', html, flags=re.IGNORECASE | re.DOTALL)
+
+
+def parse_circlek_station_list_item(item_html: str) -> dict | None:
+    link_match = re.search(r'<a[^>]+href="([^"]*/station/[^"]+)"[^>]*>(.*?)</a>', item_html, flags=re.IGNORECASE | re.DOTALL)
+    if link_match is None:
+        return None
+
+    station_url = urljoin(CIRCLEK_BASE_URL, unescape(link_match.group(1)))
+    station_name = strip_tags(link_match.group(2))
+    if not station_name:
+        return None
+
+    item_text = strip_tags(item_html)
+    remaining_text = normalize_text_value(item_text.replace(station_name, "", 1))
+    address = remaining_text if "," in remaining_text else ""
+
+    return {
+        "station_name": station_name,
+        "address": address,
+        "city": derive_city_from_address(address) if address else "",
+        "station_url": station_url,
+    }
+
+
+def parse_circlek_stations(html: str) -> list[dict]:
     stations: list[dict] = []
-    for station_link in extract_station_links(html):
-        if ca_bundle is None:
-            station_html = fetch_circlek_station_page(station_link["station_url"])
-        else:
-            station_html = fetch_circlek_station_page(station_link["station_url"], ca_bundle=ca_bundle)
-        station = parse_circlek_station_detail(
-            station_html,
-            station_name=station_link["station_name"],
-            station_url=station_link["station_url"],
-        )
-        if station is not None:
-            stations.append(station)
+    seen_station_urls: set[str] = set()
+    for item_html in extract_station_list_items(html):
+        station = parse_circlek_station_list_item(item_html)
+        if station is None:
+            continue
+        if station["station_url"] in seen_station_urls:
+            continue
+        seen_station_urls.add(station["station_url"])
+        stations.append(station)
     return stations
 
 
 def normalize_address_for_matching(address: str) -> str:
     normalized_address = normalize_text_value(address, lowercase=True)
-    return re.sub(r"[^a-z0-9āčēģīķļņšūž]+", "", normalized_address)
+    return re.sub(r"[^a-z0-9Ã„ÂÃ„ÂÃ„â€œÃ„Â£Ã„Â«Ã„Â·Ã„Â¼Ã…â€ Ã…Â¡Ã…Â«Ã…Â¾]+", "", normalized_address)
 
 
 def station_matches_address(station: dict, station_address: str) -> bool:
     normalized_station_address = normalize_address_for_matching(station["address"])
     normalized_target_address = normalize_address_for_matching(station_address)
-    return (
-        normalized_target_address in normalized_station_address
-        or normalized_station_address in normalized_target_address
-    )
+    return normalized_target_address in normalized_station_address or normalized_station_address in normalized_target_address
 
 
 def build_circlek_dataset(prices: list[dict], stations: list[dict]) -> pd.DataFrame:
@@ -193,24 +234,52 @@ def build_circlek_dataset(prices: list[dict], stations: list[dict]) -> pd.DataFr
                     }
                 )
 
-    return pd.DataFrame(rows, columns=["station_name", "address", "city", "fuel_type", "price"])
+    return pd.DataFrame(rows, columns=CIRCLEK_DATASET_COLUMNS)
+
+
+def save_circlek_cache_csv(
+    dataset: pd.DataFrame,
+    cache_path: Path = CIRCLEK_CACHE_PATH,
+) -> Path:
+    normalized_dataset = dataset.loc[:, CIRCLEK_DATASET_COLUMNS].copy()
+    for column in ("address", "city"):
+        normalized_dataset[column] = normalized_dataset[column].map(
+            lambda value: "" if value is None or pd.isna(value) else str(value)
+        )
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    normalized_dataset.to_csv(cache_path, index=False, encoding="utf-8")
+    return cache_path
 
 
 def load_circlek_lv_v1_data(_csv_path: Path | None = None, ca_bundle: str | None = None) -> pd.DataFrame:
+    stage_started_at = time.perf_counter()
     if ca_bundle is None:
         prices_html = fetch_circlek_prices_page()
     else:
         prices_html = fetch_circlek_prices_page(ca_bundle=ca_bundle)
-    prices = parse_circlek_prices(prices_html)
-    if not prices:
-        raise ValueError("Neizdevās atrast Circle K degvielas cenas avotā")
+    log_circlek_timing("fetch prices", stage_started_at)
 
+    stage_started_at = time.perf_counter()
+    prices = parse_circlek_prices(prices_html)
+    log_circlek_timing("parse prices", stage_started_at)
+    if not prices:
+        raise ValueError("NeizdevÃ„Âs atrast Circle K degvielas cenas avotÃ„Â")
+
+    stage_started_at = time.perf_counter()
     if ca_bundle is None:
         stations_html = fetch_circlek_station_list_page()
     else:
         stations_html = fetch_circlek_station_list_page(ca_bundle=ca_bundle)
-    stations = parse_circlek_stations(stations_html, ca_bundle=ca_bundle)
-    if not stations:
-        raise ValueError("Neizdevās atrast Circle K stacijas avotā")
+    log_circlek_timing("fetch station list", stage_started_at)
+    maybe_write_circlek_debug_html(stations_html)
 
-    return build_circlek_dataset(prices, stations)
+    stage_started_at = time.perf_counter()
+    stations = parse_circlek_stations(stations_html)
+    log_circlek_timing("parse stations", stage_started_at)
+    if not stations:
+        raise ValueError("NeizdevÃ„Âs atrast Circle K stacijas avotÃ„Â")
+
+    stage_started_at = time.perf_counter()
+    dataset = build_circlek_dataset(prices, stations)
+    log_circlek_timing("build dataset", stage_started_at)
+    return dataset

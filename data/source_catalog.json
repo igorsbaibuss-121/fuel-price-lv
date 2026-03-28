@@ -26,5 +26,9 @@
   {
     "source_id": "neste_live",
     "input_format": "neste_lv_v1"
+  },
+  {
+    "source_id": "virsi_live",
+    "input_format": "virsi_lv_v1"
   }
 ]

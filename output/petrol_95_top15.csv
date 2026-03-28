@@ -1,0 +1,16 @@
+station_name,address,city,fuel_type,price,source_id,source_ids,source_count,has_price_conflict,min_price,max_price,price_range,price_values,price_source_count,google_maps_url
+Neste Ulmaņa gatve,"Ulmaņa gatve 84, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Ulma%C5%86a+gatve+84%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Jugla,"Brīvības gatve 386, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Br%C4%ABv%C4%ABbas+gatve+386%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Lucavsala,"Lucavsalas iela 1, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Lucavsalas+iela+1%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Krasta,"Krasta iela 68, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Krasta+iela+68%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Latgales,"Latgales iela 427b, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Latgales+iela+427b%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Vienības gatve,"Vienības gatve 144, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Vien%C4%ABbas+gatve+144%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Mārupe,"Upesgrīvas iela 1, Mārupe",Mārupe,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Upesgr%C4%ABvas+iela+1%2C+M%C4%81rupe%2C+M%C4%81rupe
+Neste Lubānas,"Lubānas iela 64, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Lub%C4%81nas+iela+64%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Daugavgrīvas,"Kuldīgas iela 1, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Kuld%C4%ABgas+iela+1%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Duntes,"Dambja iela 10, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Dambja+iela+10%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Imanta,"Jūrmalas gatve 46b, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=J%C5%ABrmalas+gatve+46b%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Imanta II,"Kurzemes pr. 15a, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Kurzemes+pr.+15a%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Senču,"Senču iela 2b, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Sen%C4%8Du+iela+2b%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Lielirbes,"Lielirbes iela 30, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Lielirbes+iela+30%2C+R%C4%ABga%2C+R%C4%ABga
+Neste Ganību,"Rankas iela 2, Rīga",Rīga,petrol_95,1.797,neste_live,neste_live,1,False,1.797,1.797,0.0,1.797,1,https://www.google.com/maps/search/?api=1&query=Rankas+iela+2%2C+R%C4%ABga%2C+R%C4%ABga

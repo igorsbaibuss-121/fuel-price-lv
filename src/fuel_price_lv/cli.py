@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ca-bundle", help="Papildu CA bundle fails SSL verifikācijai attālinātiem avotiem")
     parser.add_argument(
         "--input-format",
-        choices=["standard", "raw_v1", "excel_v1", "remote_csv_v1", "circlek_lv_v1", "neste_lv_v1"],
+        choices=["standard", "raw_v1", "excel_v1", "remote_csv_v1", "circlek_lv_v1", "neste_lv_v1", "virsi_lv_v1"],
         default="standard",
     )
     parser.add_argument("--top-n", type=positive_int, default=5, help="Cik ierakstus rādīt")
@@ -34,4 +34,5 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--save-history", action="store_true")
     parser.add_argument("--dedup", action="store_true")
     parser.add_argument("--detect-price-conflicts", action="store_true")
+    parser.add_argument("--refresh-circlek", action="store_true")
     return parser.parse_args()

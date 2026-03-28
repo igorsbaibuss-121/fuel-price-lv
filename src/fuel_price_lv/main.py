@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 
 from .cli import parse_args
+from .importers.circlek_lv_v1 import CIRCLEK_CACHE_PATH, load_circlek_lv_v1_data, save_circlek_cache_csv
 from .importers import load_input_data
 from .reporting import build_report_summary, render_output_text, write_report_bundle
 from .services import (
@@ -33,7 +34,7 @@ def configure_stdout_encoding() -> None:
 
 
 def input_format_uses_local_file(input_format: str) -> bool:
-    return input_format not in {"remote_csv_v1", "circlek_lv_v1", "neste_lv_v1"}
+    return input_format not in {"remote_csv_v1", "circlek_lv_v1", "neste_lv_v1", "virsi_lv_v1"}
 
 
 def resolve_catalog_csv_path(csv_path_value: str, source_catalog_path: Path) -> str:
@@ -80,6 +81,8 @@ def parse_source_ids(value: str | None) -> list[str]:
 def validate_source_selection(args) -> None:
     if args.source_id and args.source_ids:
         raise ValueError("Nevar vienlaikus lietot --source-id un --source-ids")
+    if args.refresh_circlek and args.source_id != "circlek_live":
+        raise ValueError("--refresh-circlek prasa --source-id circlek_live")
 
 
 def load_single_input_source(
@@ -147,6 +150,12 @@ def load_resolved_input_data(args) -> pd.DataFrame:
     )
 
 
+def refresh_circlek_cache(args) -> Path:
+    apply_source_catalog_defaults(args)
+    dataset = load_circlek_lv_v1_data(ca_bundle=args.ca_bundle)
+    return save_circlek_cache_csv(dataset, CIRCLEK_CACHE_PATH)
+
+
 def build_history_snapshot_path(args) -> Path:
     source_label = build_history_source_label(
         source_id=args.source_id,
@@ -165,6 +174,10 @@ def main() -> None:
 
     try:
         validate_source_selection(args)
+        if args.refresh_circlek:
+            cache_path = refresh_circlek_cache(args)
+            print(f"Circle K cache saved: {cache_path}")
+            return
         df = load_resolved_input_data(args)
     except ValueError as error:
         print(error)

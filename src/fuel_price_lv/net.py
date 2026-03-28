@@ -2,7 +2,18 @@ import os
 import socket
 import ssl
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
+
+
+DEFAULT_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "lv,en;q=0.9",
+    "Cache-Control": "no-cache",
+}
 
 
 def resolve_ca_bundle(ca_bundle: str | None = None) -> str | None:
@@ -52,8 +63,9 @@ def map_network_error(error: Exception) -> ValueError:
 
 def fetch_url_text(url: str, timeout: int = 20, ca_bundle: str | None = None) -> str:
     ssl_context = build_ssl_context(ca_bundle)
+    request = Request(url, headers=DEFAULT_BROWSER_HEADERS)
     try:
-        with urlopen(url, timeout=timeout, context=ssl_context) as response:
+        with urlopen(request, timeout=timeout, context=ssl_context) as response:
             charset = response.headers.get_content_charset() or "utf-8"
             return response.read().decode(charset, errors="replace")
     except Exception as error:

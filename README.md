@@ -48,7 +48,7 @@ python -m src.fuel_price_lv.main --fuel-type diesel
 - `--source-catalog` - source catalog JSON faila cels, noklusejums `data/source_catalog.json`
 - `--csv-path` - cels uz CSV failu, noklusejums `data/sample_prices.csv`
 - `--source-url` - attalinata CSV avota URL formatam `remote_csv_v1`
-- `--input-format` - ievades formats: `standard`, `raw_v1`, `excel_v1`, `remote_csv_v1`, `circlek_lv_v1` vai `neste_lv_v1`
+- `--input-format` - ievades formats: `standard`, `raw_v1`, `excel_v1`, `remote_csv_v1`, `circlek_lv_v1`, `neste_lv_v1` vai `virsi_lv_v1`
 - `--top-n` - cik ierakstus radit, noklusejums `5`
 - `--sort-by` - kartot pec cenas: `price_asc` vai `price_desc`
 - `--output` - izvades formats: `table`, `csv` vai `json`
@@ -131,16 +131,38 @@ python -m src.fuel_price_lv.main --input-format remote_csv_v1 --source-url https
 
 ### 13a. Lietot Circle K publisko web avotu
 ```powershell
-fuel-price-lv --input-format circlek_lv_v1 --fuel-type diesel --top-n 5
+fuel-price-lv --source-id circlek_live --fuel-type petrol_95 --refresh-circlek
 ```
-`circlek_lv_v1` izmanto Circle K publisko degvielas cenu lapu un publisko staciju sarakstu.
+Circle K live refresh var but lens, tapec ieteicamais workflows ir vispirms atjaunot cache snapshot un pec tam lasit datus no saglabata CSV.
+Circle K publiskais staciju avots paslaik nenodrosina uzticamus `address` un `city` metadatus, tapec sie lauki var but tuksi.
+
+```powershell
+fuel-price-lv --csv-path output/cache/circlek_latest.csv --input-format standard --fuel-type petrol_95 --top-n 5
+```
 
 ### 13b. Lietot Neste publisko web avotu
 ```powershell
 fuel-price-lv --input-format neste_lv_v1 --fuel-type diesel --top-n 5
 ```
 `neste_lv_v1` izmanto Neste publisko degvielas cenu lapu un publisko staciju sarakstu.
-Source catalog jau ietver dzivos publiskos avotus `circlek_live` un `neste_live`.
+
+### 13c. Lietot Virši publisko web avotu
+```powershell
+fuel-price-lv --input-format virsi_lv_v1 --fuel-type petrol_95 --top-n 5
+```
+`virsi_lv_v1` izmanto Virši publisko degvielas cenu lapu un publisko staciju tīkla datus.
+Source catalog jau ietver dzivos publiskos avotus `circlek_live`, `neste_live` un `virsi_live`.
+
+## Live avoti
+- `neste_live` - tiesais Neste publiskais avots ikdienas CLI lietosanai un multi-source salidzinajumiem.
+- `virsi_live` - tiesais Virsi publiskais avots ikdienas CLI lietosanai un multi-source salidzinajumiem.
+- `circlek_live` - Circle K publiskais avots, kuram praktiski ieteicams refresh-uz-cache workflows.
+
+Circle K praktiska lietosana:
+- live refresh var but lens
+- ieteicams vispirms palaist `--refresh-circlek`
+- pec tam lietot `output/cache/circlek_latest.csv` ar `--input-format standard`
+- `address` un `city` lauki var but tuksi
 
 ### 14. Lietot source-id katalogu raw_v1 avotam
 ```powershell
@@ -185,12 +207,17 @@ fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10
 
 ### 21a. Palaist live multi-source workflow priekš petrol_95
 ```powershell
-fuel-price-lv --source-ids circlek_live,neste_live --fuel-type petrol_95 --top-n 10 --dedup --detect-price-conflicts --report
+fuel-price-lv --source-ids circlek_live,neste_live,virsi_live --fuel-type petrol_95 --top-n 10 --dedup --detect-price-conflicts --report
 ```
 
 ### 22. Saglabāt live workflow history snapshot
 ```powershell
 fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --report --save-history
+```
+
+### 21b. Palaist praktisku Neste + Virsi live report workflow
+```powershell
+fuel-price-lv --source-ids neste_live,virsi_live --fuel-type petrol_95 --top-n 15 --dedup --detect-price-conflicts --report
 ```
 
 ## Live source troubleshooting
