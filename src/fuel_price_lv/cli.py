@@ -10,7 +10,7 @@ def positive_int(value: str) -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fuel Price LV sample viewer")
-    parser.add_argument("--fuel-type", required=True, help="Degvielas tips, piem. diesel vai petrol_95")
+    parser.add_argument("--fuel-type", required=False, default=None, help="Degvielas tips, piem. diesel vai petrol_95")
     parser.add_argument("--city", help="Pilsēta, piem. Rīga")
     parser.add_argument("--station", help="DUS nosaukuma daļa, piem. Neste")
     parser.add_argument("--source-id", help="Avota identifikators no source catalog faila")
@@ -35,4 +35,5 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dedup", action="store_true")
     parser.add_argument("--detect-price-conflicts", action="store_true")
     parser.add_argument("--refresh-circlek", action="store_true")
+    parser.add_argument("--summary-report", action="store_true", help="Izveido XLSX kopsavilkumu ar grafiku")
     return parser.parse_args()

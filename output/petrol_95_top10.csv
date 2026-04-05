@@ -1,3 +1,0 @@
-station_name,address,city,fuel_type,price,source_id,source_ids,source_count,has_price_conflict,min_price,max_price,price_range,price_values,price_source_count,google_maps_url
-Circle K Brīvības,"Brīvības iela 1, Rīga",Rīga,petrol_95,1.654,circlek_live,circlek_live,1,False,1.654,1.654,0.0,1.654,1,https://www.google.com/maps/search/?api=1&query=Br%C4%ABv%C4%ABbas+iela+1%2C+R%C4%ABga%2C+R%C4%ABga
-Neste Brīvības,"Brīvības iela 1, Rīga",Rīga,petrol_95,1.659,neste_live,neste_live,1,False,1.659,1.659,0.0,1.659,1,https://www.google.com/maps/search/?api=1&query=Br%C4%ABv%C4%ABbas+iela+1%2C+R%C4%ABga%2C+R%C4%ABga

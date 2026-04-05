@@ -279,14 +279,13 @@ def normalize_google_maps_query_part(value: object) -> str:
 def build_google_maps_search_url(address: object, city: object = None) -> str:
     normalized_address = normalize_google_maps_query_part(address)
     normalized_city = normalize_google_maps_query_part(city)
-    if normalized_address and normalized_city:
-        query = f"{normalized_address}, {normalized_city}"
-    elif normalized_address:
-        query = normalized_address
-    elif normalized_city:
-        query = normalized_city
-    else:
+    # Bez adreses URL nav pietiekami precīzs (norādītu tikai uz pilsētu)
+    if not normalized_address:
         return ""
+    if normalized_city:
+        query = f"{normalized_address}, {normalized_city}"
+    else:
+        query = normalized_address
     return f"https://www.google.com/maps/search/?api=1&query={quote_plus(query)}"
 
 

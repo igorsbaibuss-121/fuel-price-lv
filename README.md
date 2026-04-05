@@ -154,15 +154,48 @@ fuel-price-lv --input-format virsi_lv_v1 --fuel-type petrol_95 --top-n 5
 Source catalog jau ietver dzivos publiskos avotus `circlek_live`, `neste_live` un `virsi_live`.
 
 ## Live avoti
-- `neste_live` - tiesais Neste publiskais avots ikdienas CLI lietosanai un multi-source salidzinajumiem.
-- `virsi_live` - tiesais Virsi publiskais avots ikdienas CLI lietosanai un multi-source salidzinajumiem.
-- `circlek_live` - Circle K publiskais avots, kuram praktiski ieteicams refresh-uz-cache workflows.
 
-Circle K praktiska lietosana:
-- live refresh var but lens
+| Source ID      | Piegādātājs | Piezīme |
+|----------------|-------------|---------|
+| `circlek_live` | Circle K    | Lēns; ieteicams izmantot cache (skat. zemāk) |
+| `neste_live`   | Neste       | Ātra ielāde, pilni metadati |
+| `virsi_live`   | Virši       | Ātra ielāde, pilni metadati |
+| `viada_live`   | VIADA       | Ātra ielāde, pilni metadati |
+
+Circle K praktiska lietošana:
+- live refresh var būt lēns
 - ieteicams vispirms palaist `--refresh-circlek`
-- pec tam lietot `output/cache/circlek_latest.csv` ar `--input-format standard`
-- `address` un `city` lauki var but tuksi
+- pēc tam lietot `output/cache/circlek_latest.csv` ar `--input-format standard`
+- `address` un `city` lauki var būt tukši (Google Maps saite netiks ģenerēta)
+
+---
+
+## Excel atskaite (summary_report_final.xlsx)
+
+Visvienkāršākais veids kā iegūt pilnu cenu pārskatu — viena komanda:
+
+```powershell
+python generate_report.py
+```
+
+Skripts automātiski:
+1. Ielādē live datus no visiem 4 avotiem (Circle K, Neste, Virši, VIADA)
+2. Piemēro deduplicēšanu
+3. Saglabā `output/summary_report_final.xlsx`
+
+### Atskaites lapas
+
+| Lapa | Saturs |
+|------|--------|
+| **Kopsavilkums** | Lētākās cenas pa piegādātājiem, degvielas veidu statistika, grafiks |
+| **Analīze** | Vidējo cenu salīdzinājums, staciju skaits, cenu diapazons pa piegādātājiem |
+| **Visas cenas** | Pilns cenu saraksts ar Google Maps saitēm uz katru DUS (tur kur adrese zināma) |
+
+### Google Maps saites
+
+Kolonnā **Google Maps** lapā "Visas cenas":
+- `🔗 Atvērt` — aktīva saite uz konkrēto DUS kartē (klikšķināma)
+- `N/A` — adrese nav zināma (Circle K stacijām adrese netiek publicēta)
 
 ### 14. Lietot source-id katalogu raw_v1 avotam
 ```powershell
@@ -249,18 +282,15 @@ fuel-price-lv --source-ids neste_live,virsi_live --fuel-type petrol_95 --top-n 1
 ## Piezime par failu nosaukumiem
 - automatiski generetu failu piemeri: `diesel_top3.json`, `diesel_summary_by_city.csv`
 
-## Next steps / v2 ideas
+## Ātrā lietošana
 
-- Add a real public data source adapter instead of relying only on demo/local inputs.
-- Improve report file naming so generated files reflect filters and reporting mode more clearly.
-- Add cache/snapshot support for remote sources to improve resilience and reproducibility.
-- Expand fuel type normalization to support more aliases and source-specific naming variations.
-- Improve packaging/release workflow with versioning, release tags, and optional automated test runs.
-
-## Live demo workflow
-
-```bash
-fuel-price-lv --source-ids circlek_live,neste_live --fuel-type diesel --top-n 10 --dedup --detect-price-conflicts --report
+**Vienkāršākais sākums — Excel atskaite ar visiem datiem:**
+```powershell
+python generate_report.py
 ```
+Rezultāts: `output/summary_report_final.xlsx`
 
-This command runs a live multi-source workflow using public Circle K and Neste data sources, applies aggregation, optional deduplication, provenance tracking, and price conflict detection, then generates report outputs in the `output/` folder.
+**CLI — konkrēts degvielas tips:**
+```powershell
+fuel-price-lv --source-ids circlek_live,neste_live,virsi_live,viada_live --fuel-type petrol_95 --dedup --top-n 10
+```

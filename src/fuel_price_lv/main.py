@@ -7,6 +7,7 @@ from .cli import parse_args
 from .importers.circlek_lv_v1 import CIRCLEK_CACHE_PATH, load_circlek_lv_v1_data, save_circlek_cache_csv
 from .importers import load_input_data
 from .reporting import build_report_summary, render_output_text, write_report_bundle
+from .xlsx_report import write_summary_report
 from .services import (
     annotate_price_conflicts,
     build_default_output_filename,
@@ -172,6 +173,10 @@ def main() -> None:
     configure_stdout_encoding()
     args = parse_args()
 
+    if not args.fuel_type and not args.summary_report:
+        print("--fuel-type ir obligāts, ja netiek lietots --summary-report")
+        return
+
     try:
         validate_source_selection(args)
         if args.refresh_circlek:
@@ -188,6 +193,12 @@ def main() -> None:
 
     if args.dedup:
         df = deduplicate_results(df)
+
+    if args.summary_report:
+        output_path = Path("output") / "summary_report.xlsx"
+        write_summary_report(df, output_path)
+        print(f"Summary Report saglabāts: {output_path}")
+        return
 
     df = filter_by_fuel_type(df, args.fuel_type)
     if args.city:
