@@ -1,30 +1,25 @@
 /**
  * Degvielas cenu Google Sheet
  * ===========================
- * Ielādē datus no GitHub un atjaunina 3 lapas:
+ * Ielādē datus no GitHub un uztur 3 lapas:
  *   - Šodien   : aktuālās lētākās cenas
  *   - Vēsture  : visi dati (tabula)
- *   - Tendences: līniju grafiki pa degvielas veidiem
+ *   - Tendences: cenu izmaiņas laika gaitā (grafiki)
  *
- * Pirmreizējā uzstādīšana:
- *   1. Atver Apps Script (Paplašinājumi → Apps Script)
- *   2. Ieliec šo kodu, saglabā
- *   3. Palaid funkciju "uzstadit" (▶ pogu)
- *   4. Apstiprina atļaujas
+ * Pirmreizējā uzstādīšana (palaid VIENU REIZI):
+ *   1. Izvēlies funkciju "uzstadit" → nospied ▶
+ *   2. Apstiprina atļaujas (Google lūgs pirmo reizi)
+ *   3. Gaidi ~2-3 minūtes — tiek veidoti grafiki
  *
- * Pēc tam dati atjauninās automātiski katru dienu pulksten 09:30.
- * Manuāla atjaunināšana: nospied pogu lapā "Šodien" vai palaid "atjauninat".
+ * Pēc uzstadit() dati atjaunināsies automātiski katru dienu 09:30.
+ * Manuāla atjaunināšana: izvēlies "atjauninat" → ▶  (~15 sekundes)
  */
 
 const GITHUB_CSV_URL =
   "https://raw.githubusercontent.com/igorsbaibuss-121/fuel-price-lv/main/data/price_history.csv";
 
-const FUEL_DISPLAY = {
-  petrol_95: "Benzīns 95",
-  petrol_98: "Benzīns 98",
-  diesel:    "Dīzelis",
-};
-
+const FUEL_TYPES     = ["petrol_95", "petrol_98", "diesel"];
+const FUEL_DISPLAY   = { petrol_95: "Benzīns 95", petrol_98: "Benzīns 98", diesel: "Dīzelis" };
 const PROVIDER_ORDER = ["Circle K", "Neste", "Virši", "VIADA"];
 
 const DARK_BLUE  = "#1F3864";
@@ -32,10 +27,9 @@ const LIGHT_BLUE = "#EBF3FB";
 const MID_BLUE   = "#2E75B6";
 const ALT_ROW    = "#D6E4F0";
 const GREEN_BG   = "#E2EFDA";
-const ORANGE_BG  = "#FCE4D6";
 
 
-// ── Galvenā ieejas funkcija ────────────────────────────────────────────────
+// ── Ātrā ikdienas atjaunināšana (~15 sek) ─────────────────────────────────
 
 function atjauninat() {
   const rows = ieladeCSV();
@@ -44,9 +38,31 @@ function atjauninat() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   veidoSodienLapu(ss, rows);
   veidoVestureLapu(ss, rows);
-  veidoTendencesLapu(ss, rows);
+  atjauninatTendencesVertibas(ss, rows); // tikai vērtības, grafiki paliek
 
   ss.toast("Dati atjaunināti! ✅", "Degvielas cenas", 4);
+}
+
+
+// ── Vienreizējā uzstādīšana (lēna, veido grafikus) ────────────────────────
+
+function uzstadit() {
+  const rows = ieladeCSV();
+  if (!rows) return;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  veidoSodienLapu(ss, rows);
+  veidoVestureLapu(ss, rows);
+  veidoTendencesLapu(ss, rows); // veido grafikus — lēns, bet tikai reizi
+
+  // Uzstāda automātisku atjaunināšanu katru dienu 09:30
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === "atjauninat")
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("atjauninat")
+    .timeBased().atHour(9).nearMinute(30).everyDays(1).create();
+
+  ss.toast("Uzstādīts! Automātiska atjaunināšana katru dienu 09:30 ✅", "Gatavs", 8);
 }
 
 
@@ -56,7 +72,7 @@ function ieladeCSV() {
   try {
     const resp = UrlFetchApp.fetch(GITHUB_CSV_URL, { muteHttpExceptions: true });
     if (resp.getResponseCode() !== 200) {
-      SpreadsheetApp.getUi().alert("Neizdevās ielādēt datus no GitHub.");
+      SpreadsheetApp.getUi().alert("Neizdevās ielādēt datus no GitHub. Kods: " + resp.getResponseCode());
       return null;
     }
     return Utilities.parseCsv(resp.getContentText());
@@ -71,91 +87,81 @@ function ieladeCSV() {
 
 function veidoSodienLapu(ss, rows) {
   let ws = ss.getSheetByName("Šodien");
-  if (!ws) ws = ss.insertSheet("Šodien", 0);
+  if (!ws) { ws = ss.insertSheet("Šodien", 0); }
   ws.clearContents();
   ws.clearFormats();
 
-  const { dateIdx, providerIdx, fuelIdx, minIdx } = kolonnas(rows[0]);
-
-  // Iegūst jaunāko pieejamo datumu
-  const dates = rows.slice(1).map(r => r[dateIdx]).filter(d => d).sort();
-  const jaunakais = dates[dates.length - 1];
-
-  const sodienDati = rows.slice(1).filter(r => r[dateIdx] === jaunakais);
+  const idx = kolonnas(rows[0]);
+  const jaunakais = jaunakaisDatums(rows, idx);
+  const sodienDati = rows.slice(1).filter(r => r[idx.date] === jaunakais);
 
   // Galvene
   galvene(ws, `Lētākās degvielas cenas  •  ${formatDate(jaunakais)}`, 1, 5);
-  ws.setRowHeight(1, 40);
+  ws.setRowHeight(1, 36);
 
-  // Kolonnu virsraksti
-  setRow(ws, 2, ["Piegādātājs", "Benzīns 95", "Benzīns 98", "Dīzelis", "Lētākā"], DARK_BLUE, "white", true);
-  ws.setRowHeight(2, 28);
+  // Kolonnu virsraksti — batch setValues
+  ws.getRange(2, 1, 1, 5).setValues([["Piegādātājs", "Benzīns 95", "Benzīns 98", "Dīzelis", "Lētākā"]]);
+  stilsGalvene(ws.getRange(2, 1, 1, 5));
+  ws.setRowHeight(2, 26);
 
-  // Aprēķina min katram degvielas tipam
+  // Min cenas katrai kategorijai (lai izcelt zaļo)
   const fuelMins = {};
-  Object.keys(FUEL_DISPLAY).forEach(fuel => {
-    const prices = sodienDati
-      .filter(r => r[fuelIdx] === fuel)
-      .map(r => parseFloat(r[minIdx]))
-      .filter(v => !isNaN(v));
-    fuelMins[fuel] = prices.length ? Math.min(...prices) : null;
+  FUEL_TYPES.forEach(f => {
+    const p = sodienDati.filter(r => r[idx.fuel] === f).map(r => parseFloat(r[idx.min])).filter(v => !isNaN(v));
+    fuelMins[f] = p.length ? Math.min(...p) : null;
   });
 
-  // Dati pa piegādātājiem
-  let dataRow = 3;
+  // Vērtību un fonu masīvi priekš batch rakstīšanas
+  const values = [];
+  const bgs    = [];
+  const fmts   = [];
+
   PROVIDER_ORDER.forEach((provider, i) => {
-    const pDati = sodienDati.filter(r => r[providerIdx] === provider);
-    const bg = i % 2 === 0 ? "white" : ALT_ROW;
-
+    const pRows = sodienDati.filter(r => r[idx.provider] === provider);
     const prices = {};
-    pDati.forEach(r => { prices[r[fuelIdx]] = parseFloat(r[minIdx]); });
+    pRows.forEach(r => { prices[r[idx.fuel]] = parseFloat(r[idx.min]); });
 
-    const vals = Object.keys(FUEL_DISPLAY).map(f => prices[f] || "");
-    const letaka = vals.filter(v => v !== "").length
-      ? Math.min(...vals.filter(v => v !== ""))
-      : "";
+    const nums = FUEL_TYPES.map(f => prices[f] || null).filter(v => v !== null);
+    const letaka = nums.length ? Math.min(...nums) : null;
 
-    ws.getRange(dataRow, 1).setValue(provider).setFontWeight("bold");
-    ws.getRange(dataRow, 1, 1, 5).setBackground(bg).setVerticalAlignment("middle");
-    ws.setRowHeight(dataRow, 24);
+    const bg = i % 2 === 0 ? "#FFFFFF" : ALT_ROW;
+    const row = [provider,
+                 prices["petrol_95"] || null,
+                 prices["petrol_98"] || null,
+                 prices["diesel"]    || null,
+                 letaka];
+    values.push(row);
 
-    Object.keys(FUEL_DISPLAY).forEach((fuel, col) => {
-      const cell = ws.getRange(dataRow, col + 2);
-      const val = prices[fuel];
-      if (val) {
-        cell.setValue(val).setNumberFormat("€#,##0.000");
-        // Zaļš ja šī piegādātāja cena ir viszemākā šajā kategorijā
-        if (fuelMins[fuel] !== null && Math.abs(val - fuelMins[fuel]) < 0.0005) {
-          cell.setBackground(GREEN_BG).setFontWeight("bold");
-        }
-      } else {
-        cell.setValue("—").setFontColor("#AAAAAA");
+    // Foni: noklusējums bg, zaļš kur lētākais
+    const rowBg = [bg, bg, bg, bg, bg];
+    FUEL_TYPES.forEach((f, fi) => {
+      if (prices[f] && fuelMins[f] !== null && Math.abs(prices[f] - fuelMins[f]) < 0.0005) {
+        rowBg[fi + 1] = GREEN_BG;
       }
     });
-
-    if (letaka !== "") {
-      ws.getRange(dataRow, 5).setValue(letaka).setNumberFormat("€#,##0.000").setFontWeight("bold");
-    }
-
-    dataRow++;
+    bgs.push(rowBg);
+    fmts.push(["@", "€0.000", "€0.000", "€0.000", "€0.000"]);
   });
 
+  const dataRange = ws.getRange(3, 1, values.length, 5);
+  dataRange.setValues(values);
+  dataRange.setBackgrounds(bgs);
+  dataRange.setNumberFormats(fmts);
+  dataRange.setVerticalAlignment("middle");
+
+  // Bold pirmā kolonna
+  ws.getRange(3, 1, values.length, 1).setFontWeight("bold");
+
+  // Rindas augstums
+  for (let i = 3; i < 3 + values.length; i++) ws.setRowHeight(i, 24);
+
   // Leģenda
-  ws.getRange(dataRow + 1, 1, 1, 5).merge()
+  const legRow = 3 + values.length + 1;
+  ws.getRange(legRow, 1, 1, 5).merge()
     .setValue("✅ Zaļš = lētākā cena šajā kategorijā")
     .setFontStyle("italic").setFontColor("#375623").setBackground(GREEN_BG);
 
-  // Poga manuālai atjaunināšanai
-  try {
-    const drawings = ws.getDrawings();
-    drawings.forEach(d => d.remove());
-  } catch(e) {}
-
-  // Kolonnu platumi
-  ws.setColumnWidth(1, 100);
-  [2, 3, 4, 5].forEach(c => ws.setColumnWidth(c, 110));
-
-  // Nofiksē pirmo rindu
+  ws.setColumnWidths(1, 5, 110);
   ws.setFrozenRows(2);
 }
 
@@ -167,86 +173,37 @@ function veidoVestureLapu(ss, rows) {
   if (!ws) ws = ss.insertSheet("Vēsture");
   ws.clearContents();
   ws.clearFormats();
-
   if (rows.length === 0) return;
 
   ws.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+  stilsGalvene(ws.getRange(1, 1, 1, rows[0].length));
 
-  // Formatē galveni
-  ws.getRange(1, 1, 1, rows[0].length)
-    .setBackground(DARK_BLUE).setFontColor("white").setFontWeight("bold");
-
-  // Formatē cenu kolonnas
-  const { minIdx, avgIdx } = kolonnas(rows[0]);
+  const idx = kolonnas(rows[0]);
   if (rows.length > 1) {
-    ws.getRange(2, minIdx + 1, rows.length - 1, 1).setNumberFormat("0.000");
-    ws.getRange(2, avgIdx + 1, rows.length - 1, 1).setNumberFormat("0.000");
+    ws.getRange(2, idx.min + 1, rows.length - 1, 1).setNumberFormat("0.000");
+    ws.getRange(2, idx.avg + 1, rows.length - 1, 1).setNumberFormat("0.000");
   }
-
   ws.autoResizeColumns(1, rows[0].length);
   ws.setFrozenRows(1);
 }
 
 
-// ── Lapa "Tendences" ──────────────────────────────────────────────────────
+// ── Lapa "Tendences" — izveide ar grafikiem (vienu reizi) ─────────────────
 
 function veidoTendencesLapu(ss, rows) {
   let ws = ss.getSheetByName("Tendences");
   if (!ws) ws = ss.insertSheet("Tendences");
   ws.clearContents();
   ws.clearFormats();
+  ws.getCharts().forEach(c => ws.removeChart(c));
 
-  // Dzēš vecos grafikus
-  const charts = ws.getCharts();
-  charts.forEach(c => ws.removeChart(c));
+  const layout = uzrakstitTendencesTabulas(ws, rows);
 
-  const { dateIdx, providerIdx, fuelIdx, minIdx } = kolonnas(rows[0]);
-
-  // Sakārto unikālos datumus
-  const allDates = [...new Set(rows.slice(1).map(r => r[dateIdx]))].sort();
-
-  let currentRow = 1;
-
-  Object.entries(FUEL_DISPLAY).forEach(([fuelType, fuelLabel]) => {
-    // Sadaļas virsraksts
-    galvene(ws, `${fuelLabel} — lētākās cenas pa piegādātājiem (EUR/L)`,
-            currentRow, 1 + PROVIDER_ORDER.length);
-    ws.setRowHeight(currentRow, 28);
-
-    // Galvene: Datums | Provider1 | Provider2 | ...
-    setRow(ws, currentRow + 1,
-           ["Datums", ...PROVIDER_ORDER],
-           MID_BLUE, "white", true);
-    ws.setRowHeight(currentRow + 1, 24);
-
-    const dataStart = currentRow + 2;
-
-    // Aizpilda datus
-    allDates.forEach((date, i) => {
-      const r = dataStart + i;
-      ws.getRange(r, 1).setValue(formatDate(date));
-      ws.setRowHeight(r, 20);
-      const bg = i % 2 === 0 ? "white" : ALT_ROW;
-      ws.getRange(r, 1, 1, 1 + PROVIDER_ORDER.length).setBackground(bg);
-
-      PROVIDER_ORDER.forEach((provider, p) => {
-        const match = rows.slice(1).find(
-          row => row[dateIdx] === date &&
-                 row[providerIdx] === provider &&
-                 row[fuelIdx] === fuelType
-        );
-        const cell = ws.getRange(r, p + 2);
-        if (match) {
-          cell.setValue(parseFloat(match[minIdx])).setNumberFormat("€0.000");
-        }
-      });
-    });
-
-    const dataEnd = dataStart + allDates.length - 1;
-
-    // Līniju grafiks
-    const chartRange = ws.getRange(currentRow + 1, 1, allDates.length + 1,
-                                   1 + PROVIDER_ORDER.length);
+  // Izveido grafikus (lēns solis)
+  layout.forEach(({ fuelLabel, headerRow, dataStart, dataEnd }) => {
+    if (dataEnd < dataStart) return;
+    const nCols = 1 + PROVIDER_ORDER.length;
+    const chartRange = ws.getRange(headerRow, 1, dataEnd - headerRow + 1, nCols);
     const chart = ws.newChart()
       .setChartType(Charts.ChartType.LINE)
       .addRange(chartRange)
@@ -254,18 +211,91 @@ function veidoTendencesLapu(ss, rows) {
       .setOption("vAxis.title", "Cena (EUR/L)")
       .setOption("hAxis.title", "Datums")
       .setOption("legend.position", "bottom")
-      .setOption("width",  550)
-      .setOption("height", 320)
-      .setPosition(currentRow, 2 + PROVIDER_ORDER.length, 10, 10)
+      .setOption("width", 520).setOption("height", 300)
+      .setPosition(headerRow, nCols + 2, 0, 0)
       .build();
     ws.insertChart(chart);
+  });
 
+  ws.setColumnWidth(1, 110);
+  PROVIDER_ORDER.forEach((_, i) => ws.setColumnWidth(i + 2, 105));
+}
+
+
+// ── Tendences — tikai vērtību atjaunināšana (ātrs, grafiki paliek) ────────
+
+function atjauninatTendencesVertibas(ss, rows) {
+  const ws = ss.getSheetByName("Tendences");
+  if (!ws) return; // Nav izveidota — uzstadit() vēl nav palaists
+  ws.clearContents();
+  ws.clearFormats();
+  // Grafiki netiek skarts (getCharts() / removeChart() nav izsaukts)
+  uzrakstitTendencesTabulas(ws, rows);
+}
+
+
+// ── Tendences tabulu rakstīšana (kopīgs kods abiem ceļiem) ────────────────
+
+function uzrakstitTendencesTabulas(ws, rows) {
+  const idx = kolonnas(rows[0]);
+  const allDates = [...new Set(rows.slice(1).map(r => r[idx.date]))].sort();
+  const layout = [];
+  let currentRow = 1;
+
+  FUEL_TYPES.forEach(fuelType => {
+    const fuelLabel = FUEL_DISPLAY[fuelType];
+
+    // Sadaļas virsraksts
+    galvene(ws, `${fuelLabel} — lētākās cenas pa piegādātājiem (EUR/L)`,
+            currentRow, 1 + PROVIDER_ORDER.length);
+    ws.setRowHeight(currentRow, 26);
+
+    const headerRow = currentRow + 1;
+    // Kolonnu galvene — batch
+    ws.getRange(headerRow, 1, 1, 1 + PROVIDER_ORDER.length)
+      .setValues([["Datums", ...PROVIDER_ORDER]]);
+    stilsGalvene(ws.getRange(headerRow, 1, 1, 1 + PROVIDER_ORDER.length), MID_BLUE);
+    ws.setRowHeight(headerRow, 22);
+
+    const dataStart = headerRow + 1;
+    const dataValues = [];
+    const dataFmts   = [];
+    const dataBgs    = [];
+
+    allDates.forEach((date, i) => {
+      const bg = i % 2 === 0 ? "#FFFFFF" : ALT_ROW;
+      const rowVals = [formatDate(date)];
+      const rowFmts = ["@"];
+      const rowBgs  = [bg];
+
+      PROVIDER_ORDER.forEach(provider => {
+        const match = rows.slice(1).find(
+          r => r[idx.date] === date && r[idx.provider] === provider && r[idx.fuel] === fuelType
+        );
+        rowVals.push(match ? parseFloat(match[idx.min]) : null);
+        rowFmts.push("€0.000");
+        rowBgs.push(bg);
+      });
+
+      dataValues.push(rowVals);
+      dataFmts.push(rowFmts);
+      dataBgs.push(rowBgs);
+    });
+
+    const dataEnd = dataStart + allDates.length - 1;
+
+    if (dataValues.length > 0) {
+      const r = ws.getRange(dataStart, 1, dataValues.length, 1 + PROVIDER_ORDER.length);
+      r.setValues(dataValues);
+      r.setNumberFormats(dataFmts);
+      r.setBackgrounds(dataBgs);
+    }
+
+    layout.push({ fuelLabel, headerRow, dataStart, dataEnd });
     currentRow = dataEnd + 3;
   });
 
-  ws.setColumnWidth(1, 100);
-  PROVIDER_ORDER.forEach((_, i) => ws.setColumnWidth(i + 2, 100));
-  ws.setFrozenRows(0);
+  return layout;
 }
 
 
@@ -273,17 +303,21 @@ function veidoTendencesLapu(ss, rows) {
 
 function kolonnas(header) {
   return {
-    dateIdx:     header.indexOf("date"),
-    providerIdx: header.indexOf("provider"),
-    fuelIdx:     header.indexOf("fuel_type"),
-    minIdx:      header.indexOf("price_min"),
-    avgIdx:      header.indexOf("price_avg"),
+    date:     header.indexOf("date"),
+    provider: header.indexOf("provider"),
+    fuel:     header.indexOf("fuel_type"),
+    min:      header.indexOf("price_min"),
+    avg:      header.indexOf("price_avg"),
   };
 }
 
+function jaunakaisDatums(rows, idx) {
+  const dates = rows.slice(1).map(r => r[idx.date]).filter(d => d).sort();
+  return dates[dates.length - 1] || "";
+}
+
 function galvene(ws, teksts, rinda, nKolonnas) {
-  const range = ws.getRange(rinda, 1, 1, nKolonnas);
-  range.merge()
+  ws.getRange(rinda, 1, 1, nKolonnas).merge()
     .setValue(teksts)
     .setBackground(LIGHT_BLUE)
     .setFontColor(DARK_BLUE)
@@ -292,41 +326,15 @@ function galvene(ws, teksts, rinda, nKolonnas) {
     .setVerticalAlignment("middle");
 }
 
-function setRow(ws, rinda, vertibas, bg, fg, bold) {
-  const range = ws.getRange(rinda, 1, 1, vertibas.length);
-  range.setValues([vertibas])
-    .setBackground(bg)
-    .setFontColor(fg)
-    .setFontWeight(bold ? "bold" : "normal")
+function stilsGalvene(range, bg) {
+  range.setBackground(bg || DARK_BLUE)
+    .setFontColor("white")
+    .setFontWeight("bold")
     .setVerticalAlignment("middle");
 }
 
 function formatDate(isoDate) {
   if (!isoDate) return "";
-  const parts = isoDate.split("-");
-  return `${parts[2]}.${parts[1]}.${parts[0]}`;
-}
-
-
-// ── Uzstādīšana (palaid vienu reizi) ──────────────────────────────────────
-
-function uzstadit() {
-  // Izveido lapas un ielādē datus pirmoreiz
-  atjauninat();
-
-  // Uzstāda automātisku atjaunināšanu katru dienu 09:30
-  // (dzēš vecos triggerus lai nedublētu)
-  ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === "atjauninat")
-    .forEach(t => ScriptApp.deleteTrigger(t));
-
-  ScriptApp.newTrigger("atjauninat")
-    .timeBased()
-    .atHour(9)
-    .nearMinute(30)
-    .everyDays(1)
-    .create();
-
-  SpreadsheetApp.getActiveSpreadsheet()
-    .toast("Uzstādīts! Dati atjaunināsies automātiski katru dienu 09:30 ✅", "Gatavs", 6);
+  const [y, m, d] = isoDate.split("-");
+  return `${d}.${m}.${y}`;
 }
