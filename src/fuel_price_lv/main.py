@@ -34,7 +34,7 @@ def configure_stdout_encoding() -> None:
 
 
 def input_format_uses_local_file(input_format: str) -> bool:
-    return input_format not in {"remote_csv_v1", "circlek_lv_v1", "neste_lv_v1", "virsi_lv_v1"}
+    return input_format not in {"remote_csv_v1", "circlek_lv_v1", "neste_lv_v1", "virsi_lv_v1", "viada_lv_v1"}
 
 
 def resolve_catalog_csv_path(csv_path_value: str, source_catalog_path: Path) -> str:
