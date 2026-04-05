@@ -1,5 +1,32 @@
 # Fuel Price LV
 
+---
+
+## ⚡ Ikdienas lietošana
+
+> Dati tiek atjaunoti **automātiski katru rītu 09:00** (GitHub Actions).
+> Tev ir jādara tikai viens solis — ģenerēt atskaiti:
+
+```powershell
+python generate_report.py
+```
+
+Atvērt: `output/summary_report_final.xlsx`
+
+| Lapa | Saturs |
+|------|--------|
+| **Kopsavilkums** | Lētākās cenas šodien, grafiks |
+| **Analīze** | Salīdzinājums pa piegādātājiem |
+| **Visas cenas** | Pilns saraksts ar Google Maps saitēm |
+| **Tendences** | Cenu izmaiņas laika gaitā (līniju grafiki) |
+
+> Ja vēlies arī atjaunot datus manuāli (ārpus automātiskā laika):
+> ```powershell
+> python collect_prices.py
+> ```
+
+---
+
 ## Problema / merkis
 Python CLI prototips degvielas cenu datu apskatei Latvija. Tas ielade datus no vairakiem ievades formatiem, filtree rezultatus un var paradit top N cenas vai letako cenu katra pilseta.
 
@@ -196,6 +223,32 @@ Skripts automātiski:
 Kolonnā **Google Maps** lapā "Visas cenas":
 - `🔗 Atvērt` — aktīva saite uz konkrēto DUS kartē (klikšķināma)
 - `N/A` — adrese nav zināma (Circle K stacijām adrese netiek publicēta)
+
+---
+
+## Automātiskā cenu vēsture (GitHub Actions)
+
+Katru rītu plkst. **09:00** (Rīgas laiks ziemā; vasarā 10:00) GitHub automātiski:
+1. Palaiž `collect_prices.py`
+2. Ielādē aktuālās cenas no visiem 4 avotiem
+3. Pievieno rindu `data/price_history.csv`
+4. Commitē failu atpakaļ repozitorijā
+
+Rezultātā `data/price_history.csv` uzkrāj vēsturi, ko lapa **"Tendences"** attēlo kā līniju grafikus.
+
+### Manuāla palaišana
+
+Ja vēlies atjaunot datus ārpus grafika (vai pārbaudīt vai viss strādā):
+```powershell
+python collect_prices.py
+```
+Vai arī: GitHub → repozitorijs → **Actions** → "Daily price update" → **Run workflow**
+
+### Apturēšana
+
+GitHub → repozitorijs → **Actions** → "Daily price update" → **Disable workflow**
+
+Nav nepieciešams dzēst kodu — pietiek ar deaktivizāciju. Atkārtoti ieslēgt: **Enable workflow**.
 
 ### 14. Lietot source-id katalogu raw_v1 avotam
 ```powershell
