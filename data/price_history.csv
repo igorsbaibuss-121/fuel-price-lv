@@ -1,0 +1,13 @@
+date,provider,fuel_type,price_min,price_avg
+2026-04-05,Circle K,petrol_95,1.864,1.864
+2026-04-05,Circle K,petrol_98,1.934,1.934
+2026-04-05,Circle K,diesel,2.044,2.044
+2026-04-05,Neste,petrol_95,1.837,1.837
+2026-04-05,Neste,petrol_98,1.907,1.907
+2026-04-05,Neste,diesel,2.027,2.027
+2026-04-05,Virši,petrol_95,1.847,1.847
+2026-04-05,Virši,petrol_98,1.917,1.917
+2026-04-05,Virši,diesel,2.027,2.027
+2026-04-05,VIADA,petrol_95,1.727,1.727
+2026-04-05,VIADA,petrol_98,1.832,1.832
+2026-04-05,VIADA,diesel,2.034,2.034

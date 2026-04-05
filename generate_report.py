@@ -1,6 +1,7 @@
 """
 Ielādē live datus no visiem avotiem un ģenerē
-output/summary_report_final.xlsx ar 3 lapām: Kopsavilkums, Analīze, Visas cenas.
+output/summary_report_final.xlsx ar 4 lapām:
+  Kopsavilkums, Analīze, Visas cenas, Tendences.
 
 Lietošana:
     python generate_report.py
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, PieChart, Reference
+from openpyxl.chart import BarChart, LineChart, PieChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -460,6 +461,91 @@ def build_visas_cenas(ws, df: pd.DataFrame) -> None:
         ws.column_dimensions[get_column_letter(col)].width = w
 
 
+# ── Lapa 4: Tendences ────────────────────────────────────────────────────────
+HISTORY_PATH = Path("data/price_history.csv")
+TENDENCES_FUELS = ["petrol_95", "petrol_98", "diesel"]
+
+
+def build_tendences(ws) -> None:
+    if not HISTORY_PATH.exists():
+        ws.merge_cells("A1:F1")
+        c = ws["A1"]
+        c.value = "Nav vēstures datu. Palaid: python collect_prices.py"
+        c.font = _font(italic=True, color="999999")
+        return
+
+    hist = pd.read_csv(HISTORY_PATH)
+    hist["date"] = pd.to_datetime(hist["date"])
+    hist = hist.sort_values("date")
+
+    current_row = 1
+    CHART_COL = get_column_letter(2 + len(PROVIDER_ORDER))  # kolonna aiz tabulas
+
+    for fuel_type in TENDENCES_FUELS:
+        fdf = hist[hist["fuel_type"] == fuel_type]
+        if fdf.empty:
+            continue
+
+        # Pivot: rindas=datumi, kolonnas=piegādātāji (lētākā cena dienā)
+        pivot = fdf.pivot_table(index="date", columns="provider",
+                                values="price_min", aggfunc="mean")
+        pivot = pivot.sort_index()
+        dates = [d.strftime("%d.%m.%Y") for d in pivot.index]
+
+        # Sadaļas virsraksts
+        fuel_label = FUEL_DISPLAY.get(fuel_type, fuel_type)
+        _section_header(ws, current_row,
+                        f"{fuel_label} — lētākās cenas pa piegādātājiem (EUR/L)",
+                        n_cols=1 + len(PROVIDER_ORDER))
+
+        # Tabulas galvene
+        header_cell(ws.cell(current_row + 1, 1), "Datums", bg=MID_BLUE)
+        for col, provider in enumerate(PROVIDER_ORDER, 2):
+            header_cell(ws.cell(current_row + 1, col), provider, bg=MID_BLUE)
+        ws.row_dimensions[current_row + 1].height = 20
+
+        # Dati
+        data_start = current_row + 2
+        for i, (date_val, row) in enumerate(pivot.iterrows()):
+            r = data_start + i
+            ws.row_dimensions[r].height = 16
+            bg = ALT_ROW if i % 2 else "FFFFFF"
+            data_cell(ws.cell(r, 1), date_val.strftime("%d.%m.%Y"), bg=bg, align="center")
+            for col, provider in enumerate(PROVIDER_ORDER, 2):
+                val = row.get(provider)
+                cell_val = round(float(val), 3) if pd.notna(val) else None
+                data_cell(ws.cell(r, col), cell_val, fmt="€#,##0.000", bg=bg)
+        data_end = data_start + len(pivot) - 1
+
+        # Līniju grafiks
+        chart = LineChart()
+        chart.title = f"{fuel_label} — cenu tendence"
+        chart.y_axis.title = "Cena (EUR/L)"
+        chart.y_axis.numFmt = "0.000"
+        chart.x_axis.title = "Datums"
+        chart.x_axis.crosses = "min"
+        chart.x_axis.delete = False
+        chart.style = 10
+        chart.width = 22
+        chart.height = 14
+
+        for col in range(2, 2 + len(PROVIDER_ORDER)):
+            chart.add_data(
+                Reference(ws, min_col=col, min_row=current_row + 1, max_row=data_end),
+                titles_from_data=True,
+            )
+        chart.set_categories(
+            Reference(ws, min_col=1, min_row=data_start, max_row=data_end)
+        )
+        ws.add_chart(chart, f"{CHART_COL}{current_row}")
+
+        current_row = data_end + 3
+
+    ws.column_dimensions["A"].width = 14
+    for col_idx in range(2, 2 + len(PROVIDER_ORDER)):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 12
+
+
 # ── Galvenā funkcija ──────────────────────────────────────────────────────────
 def main() -> None:
     print("Ielādē live datus ...")
@@ -472,6 +558,7 @@ def main() -> None:
     ws1.title = "Kopsavilkums"
     ws2 = wb.create_sheet("Analīze")
     ws3 = wb.create_sheet("Visas cenas")
+    ws4 = wb.create_sheet("Tendences")
 
     print("Veido lapu: Kopsavilkums ...")
     build_kopsavilkums(ws1, df)
@@ -481,6 +568,9 @@ def main() -> None:
 
     print("Veido lapu: Visas cenas ...")
     build_visas_cenas(ws3, df)
+
+    print("Veido lapu: Tendences ...")
+    build_tendences(ws4)
 
     wb.save(OUTPUT_PATH)
     print(f"✅ Atskaite saglabāta: {OUTPUT_PATH}")
