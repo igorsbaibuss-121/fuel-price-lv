@@ -6,12 +6,13 @@
  *   - Vēsture  : visi dati
  *   - Tendences: cenu izmaiņas pa dienām (tabula)
  *
- * Pirmreizējā uzstādīšana (palaid VIENU REIZI):
- *   1. Izvēlies funkciju "uzstadit" → nospied ▶
- *   2. Apstiprina atļaujas
+ * Pirmreizējā uzstādīšana:
+ *   1. Izvēlies "uzstadit"    → ▶  (dati + auto-triggers, ~20 sek)
+ *   2. Izvēlies "veidoGrafikus" → ▶  (grafiki, ~2-3 min, tikai reizi!)
+ *   3. Apstiprina atļaujas kad Google lūdz
  *
- * Pēc tam dati atjaunināsies automātiski katru dienu 09:30.
- * Manuāla atjaunināšana: izvēlies "atjauninat" → ▶
+ * Pēc tam dati un grafiki atjaunināsies automātiski katru dienu 09:30.
+ * Manuāla atjaunināšana: izvēlies "atjauninat" → ▶  (~20 sek)
  *
  * SVARĪGI: GitHub repozitorijam jābūt publiskam!
  * github.com → repozitorijs → Settings → Change visibility → Public
@@ -57,7 +58,55 @@ function uzstadit() {
     .timeBased().atHour(9).nearMinute(30).everyDays(1).create();
 
   SpreadsheetApp.getActiveSpreadsheet()
-    .toast("Uzstādīts! Auto-atjaunināšana katru dienu 09:30 ✅", "Gatavs", 6);
+    .toast("Uzstādīts! Tagad palaid 'veidoGrafikus' grafikiem ✅", "Gatavs", 8);
+}
+
+
+// ── Grafiku izveide (palaid vienu reizi, ~2-3 min) ────────────────────────
+// Pēc tam grafiki auto-atjauninās kopā ar datiem katru dienu.
+// Ja pēc daudziem mēnešiem grafiki neietver jaunākos datumus —
+// palaid šo funkciju vēlreiz.
+
+function veidoGrafikus() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ws = ss.getSheetByName("Tendences");
+  if (!ws) {
+    SpreadsheetApp.getUi().alert("Vispirms palaid 'uzstadit'!");
+    return;
+  }
+
+  // Noņem vecos grafikus
+  ws.getCharts().forEach(c => ws.removeChart(c));
+
+  const lastRow = ws.getLastRow();
+  // +500 rindas nākotnei (~1.5 gads), tukšas rindas grafikā tiek ignorētas
+  const maxRow  = lastRow + 500;
+  const sectW   = 1 + PROVIDER_ORDER.length; // 5 kolonnas katrai sekcijai
+
+  FUEL_TYPES.forEach((fuelType, fi) => {
+    const fuelLabel = FUEL_DISPLAY[fuelType];
+    const startCol  = 1 + fi * (sectW + 1); // atstarpe 1 kolonna starp sekcijām
+
+    // Datu diapazons: galvene (rinda 2) + dati (līdz maxRow)
+    const dataRange = ws.getRange(2, startCol, maxRow - 1, sectW);
+
+    const chart = ws.newChart()
+      .setChartType(Charts.ChartType.LINE)
+      .addRange(dataRange)
+      .setOption("title",              fuelLabel + " — cenu tendence")
+      .setOption("vAxis.title",        "Cena (EUR/L)")
+      .setOption("hAxis.title",        "Datums")
+      .setOption("legend.position",    "bottom")
+      .setOption("interpolateNulls",   true)
+      .setOption("width",  500)
+      .setOption("height", 300)
+      .setPosition(lastRow + 3, startCol, 0, 0)
+      .build();
+
+    ws.insertChart(chart);
+  });
+
+  ss.toast("Grafiki izveidoti! ✅", "Tendences", 5);
 }
 
 
