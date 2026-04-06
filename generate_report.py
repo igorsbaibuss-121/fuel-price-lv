@@ -99,6 +99,48 @@ def data_cell(cell, value=None, fmt=None, bold=False,
         cell.number_format = fmt
 
 
+# ── Brīvdienu/svētku pārbaude ────────────────────────────────────────────────
+LV_WEEKDAYS = ["pirmdiena", "otrdiena", "trešdiena", "ceturtdiena",
+               "piektdiena", "sestdiena", "svētdiena"]
+
+_EN_TO_LV: dict[str, str] = {
+    "New Year's Day":                             "Jaunais Gads",
+    "Good Friday":                                "Lielā Piektdiena",
+    "Easter Sunday":                              "Lieldienas",
+    "Easter Monday":                              "Otrās Lieldienas",
+    "Labour Day":                                 "Darba svētki",
+    "Restoration of Independence Day":            "Latvijas Republikas Neatkarības atjaunošanas diena",
+    "Midsummer Eve":                              "Līgo diena",
+    "Midsummer Day":                              "Jāņu diena",
+    "Proclamation Day of the Republic of Latvia": "Latvijas Republikas proklamēšanas diena",
+    "Christmas Eve":                              "Ziemassvētku vakars",
+    "Christmas Day":                              "Ziemassvētki",
+    "Second Christmas Day":                       "Otrie Ziemassvētki",
+    "New Year's Eve":                             "Vecgada vakars",
+    "Mother's Day":                               "Mātes diena",
+}
+
+
+def get_holiday_info(check_date=None) -> str | None:
+    """None — parastā darba diena; str — brīvdienas/svētku apraksts."""
+    import holidays
+    from datetime import date as date_cls
+    if check_date is None:
+        check_date = date_cls.today()
+
+    weekday = check_date.weekday()
+    if weekday >= 5:
+        return f"Šodien ir {LV_WEEKDAYS[weekday]}"
+
+    lv = holidays.Latvia(years=check_date.year)
+    if check_date in lv:
+        name = lv[check_date]
+        name = _EN_TO_LV.get(name, name)  # tulko uz LV ja angliski
+        return f"Šodien ir svētku diena: {name}"
+
+    return None
+
+
 # ── Datu ielāde ───────────────────────────────────────────────────────────────
 def load_data() -> pd.DataFrame:
     from src.fuel_price_lv.main import load_aggregated_source_data
@@ -130,10 +172,13 @@ def load_data() -> pd.DataFrame:
 
 # ── Lapa 1: Kopsavilkums ──────────────────────────────────────────────────────
 def build_kopsavilkums(ws, df: pd.DataFrame) -> None:
+    from datetime import date
+    today_str = date.today().strftime("%d.%m.%Y")
+
     # Galvene
     ws.merge_cells("A1:G1")
     c = ws["A1"]
-    c.value = "🔍 Degvielas cenu kopsavilkums — Latvija"
+    c.value = f"🔍 Degvielas cenu kopsavilkums — Latvija  •  {today_str}"
     c.font = _font(bold=True, size=16, color=DARK_BLUE)
     c.fill = _fill(LIGHT_BLUE)
     c.alignment = Alignment(horizontal="center", vertical="center")
@@ -147,6 +192,17 @@ def build_kopsavilkums(ws, df: pd.DataFrame) -> None:
     c.fill = _fill(LIGHT_BLUE)
     c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 22
+
+    # Brīvdienas/svētku paziņojums (rinda 3, tikai ja nepieciešams)
+    holiday_info = get_holiday_info(date.today())
+    if holiday_info:
+        ws.merge_cells("A3:G3")
+        c = ws["A3"]
+        c.value = f"⚠️  {holiday_info} — degvielas cenu informācija var nebūt atjaunināta"
+        c.font = _font(bold=True, size=11, color="7F3F00")
+        c.fill = _fill("FFF2CC")
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[3].height = 22
 
     # ── Piegādātāju salīdzinājuma tabula ──
     HEADER_ROW = 4
@@ -228,6 +284,17 @@ def build_kopsavilkums(ws, df: pd.DataFrame) -> None:
         data_cell(ws.cell(row, 5), round(float(fdf.max() - fdf.min()), 3), fmt="€#,##0.000", bg=bg)
         data_cell(ws.cell(row, 6), by_prov.idxmin() if not by_prov.empty else "", bg=bg)
         data_cell(ws.cell(row, 7), by_prov.idxmax() if not by_prov.empty else "", bg=bg)
+
+    # Atrunas teksts
+    disclaimer_row = ws.max_row + 2
+    ws.merge_cells(f"A{disclaimer_row}:G{disclaimer_row}")
+    c = ws.cell(disclaimer_row, 1)
+    c.value = ("Cenām ir informatīvs raksturs, tās var mainīties vairākkārtīgi dienas laikā "
+               "un atšķirties dažādās degvielas uzpildes stacijās. "
+               "Informācija par degvielas cenām netiek atjaunota brīvdienās un svētku dienās.")
+    c.font = _font(italic=True, size=9, color="595959")
+    c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    ws.row_dimensions[disclaimer_row].height = 30
 
     # Kolonnu platumi
     for col, w in enumerate([16, 10, 10, 10, 18, 12, 14], 1):
@@ -478,31 +545,34 @@ def build_tendences(ws) -> None:
     hist["date"] = pd.to_datetime(hist["date"])
     hist = hist.sort_values("date")
 
+    n_table_cols = 1 + len(PROVIDER_ORDER)  # 5: Datums + 4 piegādātāji
+
+    # ── 1. gājiens: tabulas vertikāli kolonnas A–E ───────────────────────────
     current_row = 1
-    CHART_COL = get_column_letter(2 + len(PROVIDER_ORDER))  # kolonna aiz tabulas
+    sections = []  # (header_row, data_start, data_end, fuel_label) katrai sekcijai
 
     for fuel_type in TENDENCES_FUELS:
         fdf = hist[hist["fuel_type"] == fuel_type]
         if fdf.empty:
             continue
 
-        # Pivot: rindas=datumi, kolonnas=piegādātāji (lētākā cena dienā)
         pivot = fdf.pivot_table(index="date", columns="provider",
                                 values="price_min", aggfunc="mean")
         pivot = pivot.sort_index()
-        dates = [d.strftime("%d.%m.%Y") for d in pivot.index]
+
+        fuel_label = FUEL_DISPLAY.get(fuel_type, fuel_type)
 
         # Sadaļas virsraksts
-        fuel_label = FUEL_DISPLAY.get(fuel_type, fuel_type)
         _section_header(ws, current_row,
                         f"{fuel_label} — lētākās cenas pa piegādātājiem (EUR/L)",
-                        n_cols=1 + len(PROVIDER_ORDER))
+                        n_cols=n_table_cols)
 
-        # Tabulas galvene
-        header_cell(ws.cell(current_row + 1, 1), "Datums", bg=MID_BLUE)
+        # Kolonnu virsraksti
+        header_row = current_row + 1
+        header_cell(ws.cell(header_row, 1), "Datums", bg=MID_BLUE)
         for col, provider in enumerate(PROVIDER_ORDER, 2):
-            header_cell(ws.cell(current_row + 1, col), provider, bg=MID_BLUE)
-        ws.row_dimensions[current_row + 1].height = 20
+            header_cell(ws.cell(header_row, col), provider, bg=MID_BLUE)
+        ws.row_dimensions[header_row].height = 20
 
         # Dati
         data_start = current_row + 2
@@ -517,7 +587,14 @@ def build_tendences(ws) -> None:
                 data_cell(ws.cell(r, col), cell_val, fmt="€#,##0.000", bg=bg)
         data_end = data_start + len(pivot) - 1
 
-        # Līniju grafiks
+        sections.append((header_row, data_start, data_end, fuel_label))
+        current_row = data_end + 3  # 2 tukšas rindas starp sekcijām
+
+    # ── 2. gājiens: grafiki horizontāli sākot no kolonnas G, 1. rindā ────────
+    CHART_START_COL = 7   # G
+    CHART_COL_SPAN  = 11  # kolonnas starp grafiku enkuriem (~16cm grafiks)
+
+    for idx, (header_row, data_start, data_end, fuel_label) in enumerate(sections):
         chart = LineChart()
         chart.title = f"{fuel_label} — cenu tendence"
         chart.y_axis.title = "Cena (EUR/L)"
@@ -526,21 +603,30 @@ def build_tendences(ws) -> None:
         chart.x_axis.crosses = "min"
         chart.x_axis.delete = False
         chart.style = 10
-        chart.width = 22
+        chart.width = 16
         chart.height = 14
 
         for col in range(2, 2 + len(PROVIDER_ORDER)):
             chart.add_data(
-                Reference(ws, min_col=col, min_row=current_row + 1, max_row=data_end),
+                Reference(ws, min_col=col, min_row=header_row, max_row=data_end),
                 titles_from_data=True,
             )
         chart.set_categories(
             Reference(ws, min_col=1, min_row=data_start, max_row=data_end)
         )
-        ws.add_chart(chart, f"{CHART_COL}{current_row}")
 
-        current_row = data_end + 3
+        # Datu uzlīmes uz katra punkta
+        for series in chart.series:
+            series.dLbls = DataLabelList()
+            series.dLbls.showVal = True
+            series.dLbls.showLegendKey = False
+            series.dLbls.showCatName = False
+            series.dLbls.showSerName = False
 
+        anchor = get_column_letter(CHART_START_COL + idx * CHART_COL_SPAN)
+        ws.add_chart(chart, f"{anchor}1")
+
+    # Kolonnu platumi
     ws.column_dimensions["A"].width = 14
     for col_idx in range(2, 2 + len(PROVIDER_ORDER)):
         ws.column_dimensions[get_column_letter(col_idx)].width = 12

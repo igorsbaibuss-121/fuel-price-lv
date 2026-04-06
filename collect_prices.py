@@ -18,7 +18,7 @@ import pandas as pd
 HISTORY_PATH = Path("data/price_history.csv")
 SOURCE_IDS = ["circlek_live", "neste_live", "virsi_live", "viada_live"]
 SOURCE_CATALOG = Path("data/source_catalog.json")
-FUEL_TYPES = ["petrol_95", "petrol_98", "diesel"]
+FUEL_TYPES = ["petrol_95", "petrol_98", "diesel", "diesel_plus", "lpg", "cng"]
 
 PROVIDER_LABELS = {
     "circlek_live": "Circle K",

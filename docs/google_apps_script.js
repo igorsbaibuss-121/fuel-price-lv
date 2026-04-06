@@ -21,8 +21,17 @@
 const GITHUB_CSV_URL =
   "https://raw.githubusercontent.com/igorsbaibuss-121/fuel-price-lv/main/data/price_history.csv";
 
-const FUEL_TYPES     = ["petrol_95", "petrol_98", "diesel"];
-const FUEL_DISPLAY   = { petrol_95: "Benzīns 95", petrol_98: "Benzīns 98", diesel: "Dīzelis" };
+const FUEL_TYPES     = ["petrol_95", "petrol_98", "diesel"];  // Tendences lapai
+const FUEL_DISPLAY   = {
+  petrol_95:   "Benzīns 95",
+  petrol_98:   "Benzīns 98",
+  diesel:      "Dīzelis",
+  diesel_plus: "Dīzelis Plus",
+  lpg:         "Autogāze",
+  cng:         "CNG",
+};
+// Vēlamā kārtība degvielas veidu tabulā
+const FUEL_ORDER = ["petrol_95", "petrol_98", "diesel", "diesel_plus", "lpg", "cng"];
 const PROVIDER_ORDER = ["Circle K", "Neste", "Virši", "VIADA"];
 
 const DARK_BLUE  = "#1F3864";
@@ -30,6 +39,13 @@ const LIGHT_BLUE = "#EBF3FB";
 const MID_BLUE   = "#2E75B6";
 const ALT_ROW    = "#D6E4F0";
 const GREEN_BG   = "#E2EFDA";
+const HOLIDAY_BG = "#FFF2CC";
+const HOLIDAY_FG = "#7F3F00";
+
+const DISCLAIMER =
+  "Cenām ir informatīvs raksturs, tās var mainīties vairākkārtīgi dienas laikā " +
+  "un atšķirties dažādās degvielas uzpildes stacijās. " +
+  "Informācija par degvielas cenām netiek atjaunota brīvdienās un svētku dienās.";
 
 
 // ── Ikdienas atjaunināšana ────────────────────────────────────────────────
@@ -127,79 +143,230 @@ function ieladeCSV() {
 }
 
 
+// ── Brīvdienu/svētku pārbaude ────────────────────────────────────────────
+
+/** Aprēķina Lieldienu datumu pēc Gregoriānā algoritma. */
+function easterDate(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day   = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+/** Atgriež Latvijas valsts svētku sarakstu norādītajam gadam. */
+function latvijasHolidays(year) {
+  const add = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+  const easter = easterDate(year);
+
+  // Mātes diena — otrā svētdiena maijā
+  let matesD = new Date(year, 4, 1);
+  let sunCount = 0;
+  while (sunCount < 2) {
+    if (matesD.getDay() === 0) sunCount++;
+    if (sunCount < 2) matesD.setDate(matesD.getDate() + 1);
+  }
+
+  return [
+    { date: new Date(year, 0,  1),  name: "Jaunais Gads" },
+    { date: add(easter, -2),        name: "Lielā Piektdiena" },
+    { date: easter,                 name: "Lieldienas" },
+    { date: add(easter,  1),        name: "Otrās Lieldienas" },
+    { date: new Date(year, 4,  1),  name: "Darba svētki" },
+    { date: new Date(year, 4,  4),  name: "Latvijas Republikas Neatkarības atjaunošanas diena" },
+    { date: matesD,                 name: "Mātes diena" },
+    { date: new Date(year, 5, 23),  name: "Līgo diena" },
+    { date: new Date(year, 5, 24),  name: "Jāņu diena" },
+    { date: new Date(year, 10, 18), name: "Latvijas Republikas proklamēšanas diena" },
+    { date: new Date(year, 11, 24), name: "Ziemassvētku vakars" },
+    { date: new Date(year, 11, 25), name: "Ziemassvētki" },
+    { date: new Date(year, 11, 26), name: "Otrie Ziemassvētki" },
+    { date: new Date(year, 11, 31), name: "Vecgada vakars" },
+  ];
+}
+
+const LV_WEEKDAYS = ["svētdiena", "pirmdiena", "otrdiena", "trešdiena",
+                     "ceturtdiena", "piektdiena", "sestdiena"];
+
+/**
+ * Atgriež null ja parastā darba diena,
+ * vai apraksta tekstu ja brīvdiena/svētku diena.
+ */
+function getHolidayInfo(date) {
+  const dow = date.getDay(); // 0=svētdiena, 6=sestdiena
+  if (dow === 0 || dow === 6) return "Šodien ir " + LV_WEEKDAYS[dow];
+
+  const ds = date.toDateString();
+  const found = latvijasHolidays(date.getFullYear()).find(h => h.date.toDateString() === ds);
+  if (found) return "Šodien ir svētku diena: " + found.name;
+
+  return null;
+}
+
+
 // ── Lapa "Šodien" ─────────────────────────────────────────────────────────
+
+const COMPARE_FUELS    = ["petrol_95", "petrol_98", "diesel"];  // piegādātāju tabulas kolonnas
+const FUEL_LABEL_FULL  = FUEL_DISPLAY;  // alias — izmanto FUEL_DISPLAY
+const ORANGE_BG          = "#FCE4D6";
+const N_COLS             = 7;
+
+function r3(v) { return Math.round(v * 1000) / 1000; }
 
 function veidoSodienLapu(ss, rows) {
   let ws = ss.getSheetByName("Šodien");
   if (!ws) ws = ss.insertSheet("Šodien", 0);
-  ws.clearContents();
+  ws.clear();
 
-  const idx = kolonnas(rows[0]);
+  const idx      = kolonnas(rows[0]);
   const jaunakais = jaunakaisDatums(rows, idx);
-  const dienasDati = rows.slice(1).filter(r => r[idx.date] === jaunakais);
+  const dd        = rows.slice(1).filter(r => r[idx.date] === jaunakais);
 
-  // Galvene
-  ws.getRange(1, 1, 1, 5).merge()
-    .setValue("Lētākās degvielas cenas  •  " + formatDate(jaunakais))
+  let row = 1;
+
+  // ── Virsraksts ──
+  ws.getRange(row, 1, 1, N_COLS).merge()
+    .setValue("🔍 Degvielas cenu kopsavilkums — Latvija  •  " + formatDate(jaunakais))
     .setBackground(LIGHT_BLUE).setFontColor(DARK_BLUE)
-    .setFontWeight("bold").setFontSize(13)
+    .setFontWeight("bold").setFontSize(14)
     .setHorizontalAlignment("center").setVerticalAlignment("middle");
-  ws.setRowHeight(1, 36);
+  ws.setRowHeight(row++, 34);
 
+  // ── Subtituls ──
+  ws.getRange(row, 1, 1, N_COLS).merge()
+    .setValue("Vidējās mazumtirdzniecības cenas EUR/L (ieskaitot PVN)")
+    .setBackground(LIGHT_BLUE).setFontColor("#595959").setFontStyle("italic")
+    .setHorizontalAlignment("center").setVerticalAlignment("middle");
+  ws.setRowHeight(row++, 20);
+
+  // ── Brīvdienas/svētku paziņojums ──
+  const holidayInfo = getHolidayInfo(new Date());
+  if (holidayInfo) {
+    ws.getRange(row, 1, 1, N_COLS).merge()
+      .setValue("⚠️  " + holidayInfo + " — degvielas cenu informācija var nebūt atjaunināta")
+      .setBackground(HOLIDAY_BG).setFontColor(HOLIDAY_FG)
+      .setFontWeight("bold").setFontSize(11)
+      .setHorizontalAlignment("center").setVerticalAlignment("middle");
+    ws.setRowHeight(row++, 24);
+  }
+
+  // ── 1. tabula: piegādātāju salīdzinājums ──
   // Virsraksti
-  ws.getRange(2, 1, 1, 5)
-    .setValues([["Piegādātājs", "Benzīns 95", "Benzīns 98", "Dīzelis", "Lētākā"]])
+  ws.getRange(row, 1, 1, N_COLS)
+    .setValues([["Piegādātājs", "95", "98", "Dīzelis", "Lētākā degviela", "Min cena", ""]])
     .setBackground(DARK_BLUE).setFontColor("white").setFontWeight("bold")
-    .setHorizontalAlignment("center");
-  ws.setRowHeight(2, 26);
+    .setHorizontalAlignment("center").setVerticalAlignment("middle");
+  ws.setRowHeight(row++, 22);
 
-  // Min katram degvielas tipam
-  const fuelMins = {};
-  FUEL_TYPES.forEach(f => {
-    const p = dienasDati.filter(r => r[idx.fuel] === f)
-                        .map(r => parseFloat(r[idx.min])).filter(v => !isNaN(v));
-    fuelMins[f] = p.length ? Math.min(...p) : null;
+  // Lētākā cena katrā degvielas kolonnā (zaļš izcēlums)
+  const colMin = {};
+  COMPARE_FUELS.forEach(f => {
+    const vals = dd.filter(r => r[idx.fuel] === f).map(r => parseFloat(r[idx.min])).filter(v => !isNaN(v));
+    colMin[f] = vals.length ? Math.min(...vals) : null;
   });
 
-  // Dati
-  const values = [], bgs = [], fmts = [], aligns = [];
   PROVIDER_ORDER.forEach((provider, i) => {
-    const pRows = dienasDati.filter(r => r[idx.provider] === provider);
+    const pRows = dd.filter(r => r[idx.provider] === provider);
     const prices = {};
     pRows.forEach(r => { prices[r[idx.fuel]] = parseFloat(r[idx.min]); });
-    const nums = Object.values(prices).filter(v => !isNaN(v));
-    const letaka = nums.length ? Math.min(...nums) : "";
 
-    const bg = i % 2 === 0 ? "#FFFFFF" : ALT_ROW;
-    values.push([provider,
-                 prices["petrol_95"] || "",
-                 prices["petrol_98"] || "",
-                 prices["diesel"]    || "",
-                 letaka || ""]);
+    const validEntries = Object.entries(prices).filter(([, v]) => !isNaN(v));
+    const cheapEntry   = validEntries.length ? validEntries.reduce((a, b) => a[1] < b[1] ? a : b) : null;
+    const cheapFuel    = cheapEntry ? (FUEL_LABEL_FULL[cheapEntry[0]] || cheapEntry[0]) : "";
+    const minPrice     = cheapEntry ? cheapEntry[1] : null;
 
-    const rowBg = [bg, bg, bg, bg, bg];
-    FUEL_TYPES.forEach((f, fi) => {
-      if (prices[f] && fuelMins[f] !== null && Math.abs(prices[f] - fuelMins[f]) < 0.0005)
+    const bg   = i % 2 === 0 ? "#FFFFFF" : ALT_ROW;
+    const rowBg = [bg, bg, bg, bg, bg, bg, bg];
+    COMPARE_FUELS.forEach((f, fi) => {
+      if (prices[f] != null && !isNaN(prices[f]) && colMin[f] != null && Math.abs(prices[f] - colMin[f]) < 0.0005)
         rowBg[fi + 1] = GREEN_BG;
     });
-    bgs.push(rowBg);
-    fmts.push(["@", "€0.000", "€0.000", "€0.000", "€0.000"]);
-    aligns.push(["left", "center", "center", "center", "center"]);
+
+    ws.getRange(row, 1, 1, N_COLS).setValues([[
+      provider,
+      !isNaN(prices["petrol_95"]) ? prices["petrol_95"] : "",
+      !isNaN(prices["petrol_98"]) ? prices["petrol_98"] : "",
+      !isNaN(prices["diesel"])    ? prices["diesel"]    : "",
+      cheapFuel,
+      minPrice !== null ? minPrice : "",
+      ""
+    ]]).setBackgrounds([rowBg]).setVerticalAlignment("middle");
+    ws.getRange(row, 1).setFontWeight("bold").setHorizontalAlignment("left");
+    ws.getRange(row, 2, 1, 3).setNumberFormat("€0.000").setHorizontalAlignment("center");
+    ws.getRange(row, 5, 1, 1).setHorizontalAlignment("center");
+    ws.getRange(row, 6, 1, 1).setNumberFormat("€0.000").setHorizontalAlignment("center");
+    ws.setRowHeight(row++, 18);
   });
 
-  const dr = ws.getRange(3, 1, values.length, 5);
-  dr.setValues(values).setBackgrounds(bgs).setNumberFormats(fmts)
-    .setHorizontalAlignments(aligns).setVerticalAlignment("middle");
-  ws.getRange(3, 1, values.length, 1).setFontWeight("bold");
-  for (let i = 3; i < 3 + values.length; i++) ws.setRowHeight(i, 24);
-
   // Leģenda
-  ws.getRange(3 + values.length + 1, 1, 1, 5).merge()
-    .setValue("✅ Zaļš = lētākā cena šajā kategorijā")
+  row++;
+  ws.getRange(row, 1, 1, N_COLS).merge()
+    .setValue("✅ Zaļš fons = lētākā cena šajā kategorijā")
     .setFontStyle("italic").setFontColor("#375623").setBackground(GREEN_BG);
+  ws.setRowHeight(row++, 18);
 
-  ws.setColumnWidths(1, 5, 115);
-  ws.setFrozenRows(2);
+  // ── 2. tabula: degvielas veidu kopsavilkums ──
+  row++;
+  ws.getRange(row, 1, 1, N_COLS)
+    .setValues([["Degviela", "Min cena", "Vidējā cena", "Max cena", "Starpība", "Lētākais", "Dārgākais"]])
+    .setBackground(MID_BLUE).setFontColor("white").setFontWeight("bold")
+    .setHorizontalAlignment("center").setVerticalAlignment("middle");
+  ws.setRowHeight(row++, 22);
+
+  // Rāda visus degvielas veidus kas ir datos, FUEL_ORDER kārtībā
+  const fuelsInData = FUEL_ORDER.filter(f => dd.some(r => r[idx.fuel] === f));
+  fuelsInData.forEach((fuel, i) => {
+    const fRows = dd.filter(r => r[idx.fuel] === fuel);
+    if (!fRows.length) return;
+
+    const mins = fRows.map(r => parseFloat(r[idx.min])).filter(v => !isNaN(v));
+    const avgs = fRows.map(r => parseFloat(r[idx.avg])).filter(v => !isNaN(v));
+    if (!mins.length) return;
+
+    const minVal = Math.min(...mins);
+    const maxVal = Math.max(...mins);
+    const avgVal = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : minVal;
+
+    const byProv = {};
+    fRows.forEach(r => { const v = parseFloat(r[idx.min]); if (!isNaN(v)) byProv[r[idx.provider]] = v; });
+    const entries   = Object.entries(byProv);
+    const cheapest  = entries.length ? entries.reduce((a, b) => a[1] < b[1] ? a : b)[0] : "";
+    const dearest   = entries.length ? entries.reduce((a, b) => a[1] > b[1] ? a : b)[0] : "";
+
+    const bg    = i % 2 === 0 ? "#FFFFFF" : ALT_ROW;
+    ws.getRange(row, 1, 1, N_COLS).setValues([[
+      FUEL_LABEL_FULL[fuel] || fuel,
+      r3(minVal), r3(avgVal), r3(maxVal), r3(maxVal - minVal),
+      cheapest, dearest
+    ]]).setBackgrounds([[bg, GREEN_BG, bg, ORANGE_BG, bg, bg, bg]])
+      .setVerticalAlignment("middle");
+    ws.getRange(row, 1).setHorizontalAlignment("left");
+    ws.getRange(row, 2, 1, 5).setNumberFormat("€0.000").setHorizontalAlignment("center");
+    ws.getRange(row, 6, 1, 2).setHorizontalAlignment("center");
+    ws.setRowHeight(row++, 18);
+  });
+
+  // ── Atruna ──
+  row++;
+  ws.getRange(row, 1, 1, N_COLS).merge()
+    .setValue(DISCLAIMER)
+    .setFontStyle("italic").setFontSize(9).setFontColor("#595959")
+    .setHorizontalAlignment("left").setVerticalAlignment("middle").setWrap(true);
+  ws.setRowHeight(row, 40);
+
+  // Kolonnu platumi
+  [130, 85, 85, 85, 150, 85, 85].forEach((w, i) => ws.setColumnWidth(i + 1, w));
+  ws.setFrozenRows(holidayInfo ? 3 : 2);
 }
 
 
