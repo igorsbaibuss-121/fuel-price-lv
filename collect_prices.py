@@ -41,16 +41,18 @@ def collect() -> None:
 
     for source_id, provider in PROVIDER_LABELS.items():
         pdf = df[df["source_id"] == source_id]
+        station_count = int(pdf["station_name"].nunique())
         for fuel_type in FUEL_TYPES:
             fdf = pdf[pdf["fuel_type"] == fuel_type]["price"]
             if fdf.empty:
                 continue
             rows.append({
-                "date":      today,
-                "provider":  provider,
-                "fuel_type": fuel_type,
-                "price_min": round(float(fdf.min()),  3),
-                "price_avg": round(float(fdf.mean()), 3),
+                "date":          today,
+                "provider":      provider,
+                "fuel_type":     fuel_type,
+                "price_min":     round(float(fdf.min()),  3),
+                "price_avg":     round(float(fdf.mean()), 3),
+                "station_count": station_count,
             })
 
     new_df = pd.DataFrame(rows)

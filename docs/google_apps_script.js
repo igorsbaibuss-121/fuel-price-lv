@@ -263,7 +263,7 @@ function veidoSodienLapu(ss, rows) {
   // ── 1. tabula: piegādātāju salīdzinājums ──
   // Virsraksti
   ws.getRange(row, 1, 1, N_COLS)
-    .setValues([["Piegādātājs", "95", "98", "Dīzelis", "Lētākā degviela", "Min cena", ""]])
+    .setValues([["Piegādātājs", "95", "98", "Dīzelis", "Lētākā degviela", "Min cena", "Staciju skaits"]])
     .setBackground(DARK_BLUE).setFontColor("white").setFontWeight("bold")
     .setHorizontalAlignment("center").setVerticalAlignment("middle");
   ws.setRowHeight(row++, 22);
@@ -292,6 +292,10 @@ function veidoSodienLapu(ss, rows) {
         rowBg[fi + 1] = GREEN_BG;
     });
 
+    // Staciju skaits — ņem pirmo pieejamo vērtību no šī piegādātāja rindām
+    const stationRow = pRows.find(r => idx.stations >= 0 && r[idx.stations] !== "");
+    const stationCount = stationRow ? parseInt(stationRow[idx.stations]) || "" : "";
+
     ws.getRange(row, 1, 1, N_COLS).setValues([[
       provider,
       !isNaN(prices["petrol_95"]) ? prices["petrol_95"] : "",
@@ -299,12 +303,13 @@ function veidoSodienLapu(ss, rows) {
       !isNaN(prices["diesel"])    ? prices["diesel"]    : "",
       cheapFuel,
       minPrice !== null ? minPrice : "",
-      ""
+      stationCount
     ]]).setBackgrounds([rowBg]).setVerticalAlignment("middle");
     ws.getRange(row, 1).setFontWeight("bold").setHorizontalAlignment("left");
     ws.getRange(row, 2, 1, 3).setNumberFormat("€0.000").setHorizontalAlignment("center");
     ws.getRange(row, 5, 1, 1).setHorizontalAlignment("center");
     ws.getRange(row, 6, 1, 1).setNumberFormat("€0.000").setHorizontalAlignment("center");
+    ws.getRange(row, 7, 1, 1).setHorizontalAlignment("center");
     ws.setRowHeight(row++, 18);
   });
 
@@ -474,6 +479,7 @@ function kolonnas(header) {
     fuel:     header.indexOf("fuel_type"),
     min:      header.indexOf("price_min"),
     avg:      header.indexOf("price_avg"),
+    stations: header.indexOf("station_count"),  // -1 ja vecs CSV bez šīs kolonnas
   };
 }
 
