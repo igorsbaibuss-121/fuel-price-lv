@@ -27,7 +27,19 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Vāc cenas
-        run: python collect_prices.py
+        timeout-minutes: 10
+        run: |
+          for attempt in 1 2 3; do
+            echo "Mēģinājums $attempt/3..."
+            python collect_prices.py && break
+            if [ $attempt -lt 3 ]; then
+              echo "Neizdevās, gaida 60s pirms atkārtojuma..."
+              sleep 60
+            else
+              echo "Visi 3 mēģinājumi cieta neveiksmi."
+              exit 1
+            fi
+          done
 
       - name: Commitē vēstures datus
         run: |
