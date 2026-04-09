@@ -172,7 +172,7 @@ def load_data() -> pd.DataFrame:
 
 # ── Lapa 1: Kopsavilkums ──────────────────────────────────────────────────────
 def build_kopsavilkums(ws, df: pd.DataFrame) -> None:
-    from datetime import date
+    from datetime import date, datetime
     today_str = date.today().strftime("%d.%m.%Y")
 
     # Galvene
@@ -193,20 +193,31 @@ def build_kopsavilkums(ws, df: pd.DataFrame) -> None:
     c.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[2].height = 22
 
-    # Brīvdienas/svētku paziņojums (rinda 3, tikai ja nepieciešams)
+    # Atjaunošanas laiks (rinda 3, vienmēr)
+    now_str = datetime.now().strftime("%d.%m.%Y, %H:%M")
+    ws.merge_cells("A3:G3")
+    c = ws["A3"]
+    c.value = f"Atjaunots: {now_str}"
+    c.font = _font(italic=True, size=10, color="595959")
+    c.fill = _fill(LIGHT_BLUE)
+    c.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[3].height = 18
+
+    # Brīvdienas/svētku paziņojums (rinda 4, tikai ja nepieciešams)
     holiday_info = get_holiday_info(date.today())
+    HEADER_ROW = 4
     if holiday_info:
-        ws.merge_cells("A3:G3")
-        c = ws["A3"]
+        ws.merge_cells("A4:G4")
+        c = ws["A4"]
         c.value = f"⚠️  {holiday_info} — degvielas cenu informācija var nebūt atjaunināta"
         c.font = _font(bold=True, size=11, color="7F3F00")
         c.fill = _fill("FFF2CC")
         c.alignment = Alignment(horizontal="center", vertical="center")
-        ws.row_dimensions[3].height = 22
+        ws.row_dimensions[4].height = 22
+        HEADER_ROW = 5
 
     # ── Piegādātāju salīdzinājuma tabula ──
-    HEADER_ROW = 4
-    headers = ["Piegādātājs", "95", "98", "Diesel", "Lētākā degviela", "Min cena", "Staciju skaits"]
+    headers = ["Piegādātājs", "Benzīns 95", "Benzīns 98", "Dīzelis", "Lētākā degviela", "Min cena", "Staciju skaits"]
     for col, h in enumerate(headers, 1):
         header_cell(ws.cell(HEADER_ROW, col), h)
     ws.row_dimensions[HEADER_ROW].height = 22
@@ -634,6 +645,18 @@ def build_tendences(ws) -> None:
 
 # ── Galvenā funkcija ──────────────────────────────────────────────────────────
 def main() -> None:
+    today = pd.Timestamp.today().strftime("%Y-%m-%d")
+    already_collected = (
+        HISTORY_PATH.exists()
+        and today in pd.read_csv(HISTORY_PATH)["date"].values
+    )
+    if already_collected:
+        print(f"Vēstures dati par {today} jau eksistē — izlaižam collect_prices.")
+    else:
+        print("Atjaunina vēstures datus ...")
+        from collect_prices import collect as update_history
+        update_history()
+
     print("Ielādē live datus ...")
     df = load_data()
     print(f"  {len(df)} rindas, {df['Stacija'].nunique()} unikālas stacijas, "

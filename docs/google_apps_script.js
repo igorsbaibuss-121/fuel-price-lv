@@ -249,6 +249,18 @@ function veidoSodienLapu(ss, rows) {
     .setHorizontalAlignment("center").setVerticalAlignment("middle");
   ws.setRowHeight(row++, 20);
 
+  // ── Atjaunināšanas laiks ──
+  const now = new Date();
+  const refreshLabel = "Atjaunots: " + Utilities.formatDate(
+    now, Session.getScriptTimeZone(), "dd.MM.yyyy, HH:mm"
+  );
+  ws.getRange(row, 1, 1, N_COLS).merge()
+    .setValue(refreshLabel)
+    .setBackground(LIGHT_BLUE).setFontColor("#595959").setFontSize(9)
+    .setHorizontalAlignment("center").setVerticalAlignment("middle");
+  ws.setRowHeight(row++, 16);
+
+
   // ── Brīvdienas/svētku paziņojums ──
   const holidayInfo = getHolidayInfo(new Date());
   if (holidayInfo) {
@@ -263,7 +275,7 @@ function veidoSodienLapu(ss, rows) {
   // ── 1. tabula: piegādātāju salīdzinājums ──
   // Virsraksti
   ws.getRange(row, 1, 1, N_COLS)
-    .setValues([["Piegādātājs", "95", "98", "Dīzelis", "Lētākā degviela", "Min cena", "Staciju skaits"]])
+    .setValues([["Piegādātājs", "Benzīns 95", "Benzīns 98", "Dīzelis", "Lētākā degviela", "Min cena", "Staciju skaits"]])
     .setBackground(DARK_BLUE).setFontColor("white").setFontWeight("bold")
     .setHorizontalAlignment("center").setVerticalAlignment("middle");
   ws.setRowHeight(row++, 22);
@@ -371,7 +383,7 @@ function veidoSodienLapu(ss, rows) {
 
   // Kolonnu platumi
   [130, 85, 85, 85, 150, 85, 85].forEach((w, i) => ws.setColumnWidth(i + 1, w));
-  ws.setFrozenRows(holidayInfo ? 3 : 2);
+  ws.setFrozenRows(holidayInfo ? 0 : 0);
 }
 
 
@@ -464,7 +476,7 @@ function veidoTendencesLapu(ss, rows) {
     col += PROVIDER_ORDER.length + 2; // atstarpe starp degvielas veidiem
   });
 
-  ws.setFrozenRows(2);
+  ws.setFrozenRows(0);
   ws.setRowHeight(1, 28);
   ws.setRowHeight(2, 22);
 }
