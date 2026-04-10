@@ -5,6 +5,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
+
 DEFAULT_BROWSER_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -30,6 +31,11 @@ def build_ssl_context(ca_bundle: str | None = None) -> ssl.SSLContext:
     resolved_ca_bundle = resolve_ca_bundle(ca_bundle)
     if resolved_ca_bundle:
         return ssl.create_default_context(cafile=resolved_ca_bundle)
+    try:
+        import truststore
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except ImportError:
+        pass
     return ssl.create_default_context()
 
 
