@@ -70,11 +70,14 @@ def collect() -> None:
         print(f"⚠️  {len(failed_sources)} avoti cieta neveiksmi, pārējie saglabāti.", file=sys.stderr)
 
     new_df = pd.DataFrame(rows)
+    failed_provider_names = {provider for provider, _ in failed_sources}
+    succeeded_providers = {label for label in PROVIDER_LABELS.values() if label not in failed_provider_names}
 
     if HISTORY_PATH.exists():
         hist_df = pd.read_csv(HISTORY_PATH)
-        # Ja šodienas ieraksti jau eksistē (atkārtota palaišana) — pārraksta
-        hist_df = hist_df[hist_df["date"] != today]
+        # Pārraksta tikai tos avotus kas šoreiz izdevās — neveiksmīgajiem saglabā vecos datus
+        mask_today_succeeded = (hist_df["date"] == today) & (hist_df["provider"].isin(succeeded_providers))
+        hist_df = hist_df[~mask_today_succeeded]
         combined = pd.concat([hist_df, new_df], ignore_index=True)
     else:
         combined = new_df
