@@ -70,11 +70,6 @@ def parse_neste_prices(html: str) -> list[dict]:
         price_match = re.search(r"\d+[.,]\d+", cells[1])
         if price_match is None:
             continue
-        scope_text = cells[2].lower()
-        is_network_wide = "vienādas" in scope_text or "visās stacijās" in scope_text
-        if not is_network_wide:
-            continue
-
         price_entries.append(
             {
                 "fuel_type": normalize_neste_fuel_type(fuel_label),
