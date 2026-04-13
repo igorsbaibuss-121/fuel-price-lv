@@ -25,6 +25,10 @@ VIADA_FUEL_TYPE_MAPPING = {
 def fetch_viada_prices_page(ca_bundle: str | None = None) -> str:
     try:
         return fetch_url_text(VIADA_PRICES_URL, ca_bundle=ca_bundle)
+    except ValueError:
+        pass  # SSL kļūda — mēģini bez sertifikāta pārbaudes (viada.lv nenosūta pilnu ķēdi)
+    try:
+        return fetch_url_text(VIADA_PRICES_URL, ca_bundle=ca_bundle, verify_ssl=False)
     except ValueError as error:
         raise ValueError(f"Neizdevās nolasīt VIADA cenu lapu: {error}") from error
 

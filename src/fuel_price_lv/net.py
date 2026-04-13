@@ -67,8 +67,18 @@ def map_network_error(error: Exception) -> ValueError:
     return ValueError(f"Neizdevās nolasīt attālināto avotu: {error}")
 
 
-def fetch_url_text(url: str, timeout: int = 20, ca_bundle: str | None = None) -> str:
-    ssl_context = build_ssl_context(ca_bundle)
+def fetch_url_text(
+    url: str,
+    timeout: int = 20,
+    ca_bundle: str | None = None,
+    verify_ssl: bool = True,
+) -> str:
+    if verify_ssl:
+        ssl_context = build_ssl_context(ca_bundle)
+    else:
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
     request = Request(url, headers=DEFAULT_BROWSER_HEADERS)
     try:
         with urlopen(request, timeout=timeout, context=ssl_context) as response:

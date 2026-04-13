@@ -102,7 +102,7 @@ def test_fetch_url_text_uses_explicit_ca_bundle(monkeypatch: pytest.MonkeyPatch)
 
     assert result == "ok"
     assert calls["cafile"] == "/custom/ca.pem"
-    assert calls["url"] == "https://example.com"
+    assert calls["url"].full_url == "https://example.com"
 
 
 def test_fetch_url_text_raises_clear_ssl_message(monkeypatch: pytest.MonkeyPatch) -> None:
