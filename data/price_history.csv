@@ -2748,3 +2748,14 @@ date,provider,fuel_type,price_min,price_avg,station_count
 2026-10-26,VIADA,petrol_98,1.952,1.952,11.0
 2026-10-26,VIADA,diesel,2.054,2.054,11.0
 2026-10-26,VIADA,cng,0.975,0.975,11.0
+2026-10-27,Circle K,petrol_95,1.901,1.901,85.0
+2026-10-27,Circle K,petrol_98,1.971,1.971,85.0
+2026-10-27,Circle K,diesel,2.091,2.091,85.0
+2026-10-27,Circle K,diesel_plus,2.221,2.221,85.0
+2026-10-27,Virši,petrol_95,1.889,1.889,1.0
+2026-10-27,Virši,petrol_98,1.959,1.959,1.0
+2026-10-27,Virši,diesel,2.087,2.087,1.0
+2026-10-27,VIADA,petrol_95,1.847,1.847,11.0
+2026-10-27,VIADA,petrol_98,1.952,1.952,11.0
+2026-10-27,VIADA,diesel,2.104,2.104,11.0
+2026-10-27,VIADA,cng,0.975,0.975,11.0
