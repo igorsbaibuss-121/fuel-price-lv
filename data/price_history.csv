@@ -2959,3 +2959,10 @@ date,provider,fuel_type,price_min,price_avg,station_count
 2026-11-16,Virši,petrol_95,1.757,1.757,1.0
 2026-11-16,Virši,petrol_98,1.827,1.827,1.0
 2026-11-16,Virši,diesel,2.077,2.077,1.0
+2026-11-17,Circle K,petrol_95,1.694,1.694,84.0
+2026-11-17,Circle K,petrol_98,1.764,1.764,84.0
+2026-11-17,Circle K,diesel,1.884,1.884,84.0
+2026-11-17,Circle K,diesel_plus,2.014,2.014,84.0
+2026-11-17,Virši,petrol_95,1.757,1.757,1.0
+2026-11-17,Virši,petrol_98,1.827,1.827,1.0
+2026-11-17,Virši,diesel,2.077,2.077,1.0
